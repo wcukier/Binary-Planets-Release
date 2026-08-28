@@ -1,0 +1,1079 @@
+{
+  "dt_coef": 0.05,
+  "t_end": 1000000.0,
+  "integrator": "trace",
+  "n_runs": 1000,
+  "cost_model": {
+    "A_bin": 1.84e-05,
+    "B_bin": 1.85e-06,
+    "B_sin": 5.49e-07,
+    "note": "seconds per simulated year = A_bin/P_bin + B/dt; scheduling estimate only"
+  },
+  "modes": {
+    "sin_inj": [
+      {
+        "system_index": 63,
+        "name": "TOI-561",
+        "dt": 6.062982194136789e-05,
+        "p_inner": 0.0012125964388273577,
+        "est_cpu_h_per_run": 0.78510057713924,
+        "array_index": 1
+      },
+      {
+        "system_index": 39,
+        "name": "Kepler-286",
+        "dt": 0.00022640188272185372,
+        "p_inner": 0.004528037654437074,
+        "est_cpu_h_per_run": 0.3490520357213109,
+        "array_index": 2
+      },
+      {
+        "system_index": 49,
+        "name": "Kepler-342",
+        "dt": 0.000223401539869073,
+        "p_inner": 0.00446803079738146,
+        "est_cpu_h_per_run": 0.32577013688282724,
+        "array_index": 3
+      },
+      {
+        "system_index": 15,
+        "name": "Kepler-150",
+        "dt": 0.0004759760408774392,
+        "p_inner": 0.009519520817548784,
+        "est_cpu_h_per_run": 0.212746639082139,
+        "array_index": 4
+      },
+      {
+        "system_index": 22,
+        "name": "Kepler-186",
+        "dt": 0.0004584485101495404,
+        "p_inner": 0.009168970202990808,
+        "est_cpu_h_per_run": 0.17416413405451636,
+        "array_index": 5
+      },
+      {
+        "system_index": 58,
+        "name": "Kepler-82",
+        "dt": 0.0003286000943061672,
+        "p_inner": 0.006572001886123344,
+        "est_cpu_h_per_run": 0.17371008744120192,
+        "array_index": 6
+      },
+      {
+        "system_index": 19,
+        "name": "Kepler-169",
+        "dt": 0.00043643578047198483,
+        "p_inner": 0.008728715609439696,
+        "est_cpu_h_per_run": 0.1575371207174357,
+        "array_index": 7
+      },
+      {
+        "system_index": 41,
+        "name": "Kepler-299",
+        "dt": 0.00041039134083406173,
+        "p_inner": 0.008207826816681234,
+        "est_cpu_h_per_run": 0.12647839366753105,
+        "array_index": 8
+      },
+      {
+        "system_index": 20,
+        "name": "Kepler-172",
+        "dt": 0.0004,
+        "p_inner": 0.008,
+        "est_cpu_h_per_run": 0.1137925442544254,
+        "array_index": 9
+      },
+      {
+        "system_index": 26,
+        "name": "Kepler-220",
+        "dt": 0.000577358178043253,
+        "p_inner": 0.01154716356086506,
+        "est_cpu_h_per_run": 0.10143236782427788,
+        "array_index": 10
+      },
+      {
+        "system_index": 34,
+        "name": "Kepler-251",
+        "dt": 0.0006259245792804182,
+        "p_inner": 0.012518491585608362,
+        "est_cpu_h_per_run": 0.09826586738753819,
+        "array_index": 11
+      },
+      {
+        "system_index": 55,
+        "name": "Kepler-62",
+        "dt": 0.0007827681672265349,
+        "p_inner": 0.015655363344530698,
+        "est_cpu_h_per_run": 0.09449132716059011,
+        "array_index": 12
+      },
+      {
+        "system_index": 7,
+        "name": "Kepler-324",
+        "dt": 0.0005892556509887897,
+        "p_inner": 0.011785113019775794,
+        "est_cpu_h_per_run": 0.08895106449626354,
+        "array_index": 13
+      },
+      {
+        "system_index": 18,
+        "name": "Kepler-164",
+        "dt": 0.0006689578366055393,
+        "p_inner": 0.013379156732110785,
+        "est_cpu_h_per_run": 0.08706408802374249,
+        "array_index": 14
+      },
+      {
+        "system_index": 48,
+        "name": "Kepler-341",
+        "dt": 0.0007348469228349534,
+        "p_inner": 0.014696938456699067,
+        "est_cpu_h_per_run": 0.07936674963021291,
+        "array_index": 15
+      },
+      {
+        "system_index": 30,
+        "name": "Kepler-235",
+        "dt": 0.0004672599881775928,
+        "p_inner": 0.009345199763551856,
+        "est_cpu_h_per_run": 0.0726815220082705,
+        "array_index": 16
+      },
+      {
+        "system_index": 5,
+        "name": "K2-285",
+        "dt": 0.0004092740396079234,
+        "p_inner": 0.008185480792158467,
+        "est_cpu_h_per_run": 0.06704310802769477,
+        "array_index": 17
+      },
+      {
+        "system_index": 2,
+        "name": "K2-133",
+        "dt": 0.00042081717464744823,
+        "p_inner": 0.008416343492948964,
+        "est_cpu_h_per_run": 0.066307322412362,
+        "array_index": 18
+      },
+      {
+        "system_index": 44,
+        "name": "Kepler-306",
+        "dt": 0.0006211299937499417,
+        "p_inner": 0.012422599874998833,
+        "est_cpu_h_per_run": 0.062549403633412,
+        "array_index": 19
+      },
+      {
+        "system_index": 4,
+        "name": "K2-187",
+        "dt": 0.00010662275728536579,
+        "p_inner": 0.0021324551457073157,
+        "est_cpu_h_per_run": 0.060446659852007964,
+        "array_index": 20
+      },
+      {
+        "system_index": 61,
+        "name": "TOI-1246",
+        "dt": 0.000581439454354845,
+        "p_inner": 0.0116287890870969,
+        "est_cpu_h_per_run": 0.05773910876082094,
+        "array_index": 21
+      },
+      {
+        "system_index": 31,
+        "name": "Kepler-238",
+        "dt": 0.0003044636484172572,
+        "p_inner": 0.006089272968345143,
+        "est_cpu_h_per_run": 0.05659064848080786,
+        "array_index": 22
+      },
+      {
+        "system_index": 16,
+        "name": "Kepler-154",
+        "dt": 0.0005146402547768049,
+        "p_inner": 0.010292805095536098,
+        "est_cpu_h_per_run": 0.053926522549958826,
+        "array_index": 23
+      },
+      {
+        "system_index": 11,
+        "name": "Kepler-107",
+        "dt": 0.00043492727697635216,
+        "p_inner": 0.008698545539527043,
+        "est_cpu_h_per_run": 0.05287753322356982,
+        "array_index": 24
+      },
+      {
+        "system_index": 46,
+        "name": "Kepler-33",
+        "dt": 0.0007754577705303938,
+        "p_inner": 0.015509155410607876,
+        "est_cpu_h_per_run": 0.047461200744069454,
+        "array_index": 25
+      },
+      {
+        "system_index": 54,
+        "name": "Kepler-58",
+        "dt": 0.0006312465466294284,
+        "p_inner": 0.012624930932588567,
+        "est_cpu_h_per_run": 0.046807138108526165,
+        "array_index": 26
+      },
+      {
+        "system_index": 36,
+        "name": "Kepler-26",
+        "dt": 0.0005240467536394058,
+        "p_inner": 0.010480935072788114,
+        "est_cpu_h_per_run": 0.04614918042114123,
+        "array_index": 27
+      },
+      {
+        "system_index": 37,
+        "name": "Kepler-265",
+        "dt": 0.0009154415127496165,
+        "p_inner": 0.01830883025499233,
+        "est_cpu_h_per_run": 0.03961549927022164,
+        "array_index": 28
+      },
+      {
+        "system_index": 10,
+        "name": "Kepler-106",
+        "dt": 0.0008264500055585214,
+        "p_inner": 0.016529000111170426,
+        "est_cpu_h_per_run": 0.03670656500039401,
+        "array_index": 29
+      },
+      {
+        "system_index": 45,
+        "name": "Kepler-32",
+        "dt": 9.731303913765564e-05,
+        "p_inner": 0.0019462607827531125,
+        "est_cpu_h_per_run": 0.03168634592786005,
+        "array_index": 30
+      },
+      {
+        "system_index": 9,
+        "name": "Kepler-102",
+        "dt": 0.000725189707423599,
+        "p_inner": 0.014503794148471978,
+        "est_cpu_h_per_run": 0.031199906525827537,
+        "array_index": 31
+      },
+      {
+        "system_index": 29,
+        "name": "Kepler-224",
+        "dt": 0.00040901428205727643,
+        "p_inner": 0.008180285641145528,
+        "est_cpu_h_per_run": 0.030516761979722983,
+        "array_index": 32
+      },
+      {
+        "system_index": 21,
+        "name": "Kepler-176",
+        "dt": 0.0007857754373704257,
+        "p_inner": 0.015715508747408513,
+        "est_cpu_h_per_run": 0.026699331462788703,
+        "array_index": 33
+      },
+      {
+        "system_index": 52,
+        "name": "Kepler-49",
+        "dt": 0.0003679859187029259,
+        "p_inner": 0.007359718374058517,
+        "est_cpu_h_per_run": 0.025578580779244298,
+        "array_index": 34
+      },
+      {
+        "system_index": 43,
+        "name": "Kepler-305",
+        "dt": 0.00045711192557184503,
+        "p_inner": 0.0091422385114369,
+        "est_cpu_h_per_run": 0.02374796157089766,
+        "array_index": 35
+      },
+      {
+        "system_index": 53,
+        "name": "Kepler-55",
+        "dt": 0.000313596463525155,
+        "p_inner": 0.0062719292705031,
+        "est_cpu_h_per_run": 0.023351447753622277,
+        "array_index": 36
+      },
+      {
+        "system_index": 14,
+        "name": "Kepler-1388",
+        "dt": 0.0007448190336297421,
+        "p_inner": 0.014896380672594842,
+        "est_cpu_h_per_run": 0.020876245158560996,
+        "array_index": 37
+      },
+      {
+        "system_index": 33,
+        "name": "Kepler-245",
+        "dt": 0.0004313310928137537,
+        "p_inner": 0.008626621856275074,
+        "est_cpu_h_per_run": 0.020532645434950147,
+        "array_index": 38
+      },
+      {
+        "system_index": 24,
+        "name": "Kepler-208",
+        "dt": 0.0005825479113047417,
+        "p_inner": 0.011650958226094835,
+        "est_cpu_h_per_run": 0.019124318002060856,
+        "array_index": 39
+      },
+      {
+        "system_index": 59,
+        "name": "Kepler-84",
+        "dt": 0.0005928912210515518,
+        "p_inner": 0.011857824421031034,
+        "est_cpu_h_per_run": 0.01903208770572395,
+        "array_index": 40
+      },
+      {
+        "system_index": 25,
+        "name": "Kepler-215",
+        "dt": 0.0012555239645390746,
+        "p_inner": 0.02511047929078149,
+        "est_cpu_h_per_run": 0.018974685262939314,
+        "array_index": 41
+      },
+      {
+        "system_index": 56,
+        "name": "Kepler-758",
+        "dt": 0.0005939118617850343,
+        "p_inner": 0.011878237235700684,
+        "est_cpu_h_per_run": 0.016725268890956997,
+        "array_index": 42
+      },
+      {
+        "system_index": 8,
+        "name": "KOI-351",
+        "dt": 0.0009188126395879992,
+        "p_inner": 0.018376252791759983,
+        "est_cpu_h_per_run": 0.014705059084223353,
+        "array_index": 43
+      },
+      {
+        "system_index": 0,
+        "name": "HD 108236",
+        "dt": 0.0005163285263062522,
+        "p_inner": 0.010326570526125043,
+        "est_cpu_h_per_run": 0.014622873104969174,
+        "array_index": 44
+      },
+      {
+        "system_index": 32,
+        "name": "Kepler-24",
+        "dt": 0.0005674226349044791,
+        "p_inner": 0.011348452698089581,
+        "est_cpu_h_per_run": 0.013880690415093077,
+        "array_index": 45
+      },
+      {
+        "system_index": 27,
+        "name": "Kepler-221",
+        "dt": 0.00039297567106473714,
+        "p_inner": 0.007859513421294742,
+        "est_cpu_h_per_run": 0.012816397348349239,
+        "array_index": 46
+      },
+      {
+        "system_index": 57,
+        "name": "Kepler-79",
+        "dt": 0.0018499324311985023,
+        "p_inner": 0.036998648623970044,
+        "est_cpu_h_per_run": 0.012345472296067493,
+        "array_index": 47
+      },
+      {
+        "system_index": 40,
+        "name": "Kepler-292",
+        "dt": 0.00035510975933712474,
+        "p_inner": 0.007102195186742494,
+        "est_cpu_h_per_run": 0.012060813131712221,
+        "array_index": 48
+      },
+      {
+        "system_index": 35,
+        "name": "Kepler-256",
+        "dt": 0.00022523183931961966,
+        "p_inner": 0.004504636786392393,
+        "est_cpu_h_per_run": 0.011824526080808561,
+        "array_index": 49
+      },
+      {
+        "system_index": 50,
+        "name": "Kepler-37",
+        "dt": 0.0018298594562825956,
+        "p_inner": 0.03659718912565191,
+        "est_cpu_h_per_run": 0.01128996579200182,
+        "array_index": 50
+      },
+      {
+        "system_index": 13,
+        "name": "Kepler-122",
+        "dt": 0.0007789831928962363,
+        "p_inner": 0.015579663857924725,
+        "est_cpu_h_per_run": 0.011282160152381496,
+        "array_index": 51
+      },
+      {
+        "system_index": 42,
+        "name": "Kepler-304",
+        "dt": 0.00019754088184474624,
+        "p_inner": 0.0039508176368949245,
+        "est_cpu_h_per_run": 0.008383433444096412,
+        "array_index": 52
+      },
+      {
+        "system_index": 51,
+        "name": "Kepler-402",
+        "dt": 0.000537002550394721,
+        "p_inner": 0.010740051007894418,
+        "est_cpu_h_per_run": 0.008382425221488283,
+        "array_index": 53
+      },
+      {
+        "system_index": 62,
+        "name": "TOI-178",
+        "dt": 0.0002610507064139662,
+        "p_inner": 0.005221014128279323,
+        "est_cpu_h_per_run": 0.007933229304472053,
+        "array_index": 54
+      },
+      {
+        "system_index": 12,
+        "name": "Kepler-11",
+        "dt": 0.0014008656178115969,
+        "p_inner": 0.028017312356231935,
+        "est_cpu_h_per_run": 0.00787849127168999,
+        "array_index": 55
+      },
+      {
+        "system_index": 1,
+        "name": "HD 23472",
+        "dt": 0.0005442923366457984,
+        "p_inner": 0.010885846732915969,
+        "est_cpu_h_per_run": 0.004967762041876876,
+        "array_index": 56
+      },
+      {
+        "system_index": 17,
+        "name": "Kepler-1542",
+        "dt": 0.000395667591653785,
+        "p_inner": 0.0079133518330757,
+        "est_cpu_h_per_run": 0.004796322999307084,
+        "array_index": 57
+      },
+      {
+        "system_index": 60,
+        "name": "Kepler-85",
+        "dt": 0.0011051449540966187,
+        "p_inner": 0.022102899081932373,
+        "est_cpu_h_per_run": 0.004638095525807439,
+        "array_index": 58
+      },
+      {
+        "system_index": 64,
+        "name": "TOI-700",
+        "dt": 0.0013590278672814694,
+        "p_inner": 0.027180557345629384,
+        "est_cpu_h_per_run": 0.00287944910429643,
+        "array_index": 59
+      },
+      {
+        "system_index": 47,
+        "name": "Kepler-338",
+        "dt": 0.001281686458203679,
+        "p_inner": 0.02563372916407358,
+        "est_cpu_h_per_run": 0.002855917431109164,
+        "array_index": 60
+      },
+      {
+        "system_index": 3,
+        "name": "K2-138",
+        "dt": 0.0003211767410673749,
+        "p_inner": 0.006423534821347498,
+        "est_cpu_h_per_run": 0.002588150912251651,
+        "array_index": 61
+      },
+      {
+        "system_index": 28,
+        "name": "Kepler-223",
+        "dt": 0.0009820728078915534,
+        "p_inner": 0.01964145615783107,
+        "est_cpu_h_per_run": 0.0025265379939186498,
+        "array_index": 62
+      },
+      {
+        "system_index": 23,
+        "name": "Kepler-1987",
+        "dt": 0.0003170046923942926,
+        "p_inner": 0.006340093847885851,
+        "est_cpu_h_per_run": 0.0023734646698081565,
+        "array_index": 63
+      },
+      {
+        "system_index": 38,
+        "name": "Kepler-282",
+        "dt": 0.0013209221941651124,
+        "p_inner": 0.026418443883302247,
+        "est_cpu_h_per_run": 0.00153270730113575,
+        "array_index": 64
+      },
+      {
+        "system_index": 6,
+        "name": "K2-72",
+        "dt": 0.0007698003589195011,
+        "p_inner": 0.015396007178390021,
+        "est_cpu_h_per_run": 0.0013873295209670795,
+        "array_index": 65
+      },
+      {
+        "system_index": 65,
+        "name": "TRAPPIST-1",
+        "dt": 0.00020661291397737515,
+        "p_inner": 0.004132258279547503,
+        "est_cpu_h_per_run": 0.00010212125221640514,
+        "array_index": 66
+      }
+    ],
+    "bin_inj": [
+      {
+        "system_index": 39,
+        "name": "Kepler-286",
+        "dt": 0.00022640188272185372,
+        "p_inner": 0.004528037654437074,
+        "est_cpu_h_per_run": 1.0183417907005912,
+        "array_index": 1
+      },
+      {
+        "system_index": 22,
+        "name": "Kepler-186",
+        "dt": 0.0004584485101495404,
+        "p_inner": 0.009168970202990808,
+        "est_cpu_h_per_run": 0.6019620483976675,
+        "array_index": 2
+      },
+      {
+        "system_index": 19,
+        "name": "Kepler-169",
+        "dt": 0.00043643578047198483,
+        "p_inner": 0.008728715609439696,
+        "est_cpu_h_per_run": 0.5541595259357436,
+        "array_index": 3
+      },
+      {
+        "system_index": 15,
+        "name": "Kepler-150",
+        "dt": 0.0004759760408774392,
+        "p_inner": 0.009519520817548784,
+        "est_cpu_h_per_run": 0.4929808865176823,
+        "array_index": 4
+      },
+      {
+        "system_index": 49,
+        "name": "Kepler-342",
+        "dt": 0.000223401539869073,
+        "p_inner": 0.00446803079738146,
+        "est_cpu_h_per_run": 0.4655670788705069,
+        "array_index": 5
+      },
+      {
+        "system_index": 55,
+        "name": "Kepler-62",
+        "dt": 0.0007827681672265349,
+        "p_inner": 0.015655363344530698,
+        "est_cpu_h_per_run": 0.40810906955504295,
+        "array_index": 6
+      },
+      {
+        "system_index": 48,
+        "name": "Kepler-341",
+        "dt": 0.0007348469228349534,
+        "p_inner": 0.014696938456699067,
+        "est_cpu_h_per_run": 0.387589121731432,
+        "array_index": 7
+      },
+      {
+        "system_index": 41,
+        "name": "Kepler-299",
+        "dt": 0.00041039134083406173,
+        "p_inner": 0.008207826816681234,
+        "est_cpu_h_per_run": 0.37745683058975854,
+        "array_index": 8
+      },
+      {
+        "system_index": 58,
+        "name": "Kepler-82",
+        "dt": 0.0003286000943061672,
+        "p_inner": 0.006572001886123344,
+        "est_cpu_h_per_run": 0.3704334038140143,
+        "array_index": 9
+      },
+      {
+        "system_index": 20,
+        "name": "Kepler-172",
+        "dt": 0.0004,
+        "p_inner": 0.008,
+        "est_cpu_h_per_run": 0.35764221070537694,
+        "array_index": 10
+      },
+      {
+        "system_index": 26,
+        "name": "Kepler-220",
+        "dt": 0.000577358178043253,
+        "p_inner": 0.01154716356086506,
+        "est_cpu_h_per_run": 0.3401116278640088,
+        "array_index": 11
+      },
+      {
+        "system_index": 7,
+        "name": "Kepler-324",
+        "dt": 0.0005892556509887897,
+        "p_inner": 0.011785113019775794,
+        "est_cpu_h_per_run": 0.29820016373465863,
+        "array_index": 12
+      },
+      {
+        "system_index": 34,
+        "name": "Kepler-251",
+        "dt": 0.0006259245792804182,
+        "p_inner": 0.012518491585608362,
+        "est_cpu_h_per_run": 0.28256568988945446,
+        "array_index": 13
+      },
+      {
+        "system_index": 30,
+        "name": "Kepler-235",
+        "dt": 0.0004672599881775928,
+        "p_inner": 0.009345199763551856,
+        "est_cpu_h_per_run": 0.27293729748457074,
+        "array_index": 14
+      },
+      {
+        "system_index": 18,
+        "name": "Kepler-164",
+        "dt": 0.0006689578366055393,
+        "p_inner": 0.013379156732110785,
+        "est_cpu_h_per_run": 0.25435931643131954,
+        "array_index": 15
+      },
+      {
+        "system_index": 44,
+        "name": "Kepler-306",
+        "dt": 0.0006211299937499417,
+        "p_inner": 0.012422599874998833,
+        "est_cpu_h_per_run": 0.20465539391375678,
+        "array_index": 16
+      },
+      {
+        "system_index": 54,
+        "name": "Kepler-58",
+        "dt": 0.0006312465466294284,
+        "p_inner": 0.012624930932588567,
+        "est_cpu_h_per_run": 0.17020356144421278,
+        "array_index": 17
+      },
+      {
+        "system_index": 2,
+        "name": "K2-133",
+        "dt": 0.00042081717464744823,
+        "p_inner": 0.008416343492948964,
+        "est_cpu_h_per_run": 0.16379303876693038,
+        "array_index": 18
+      },
+      {
+        "system_index": 61,
+        "name": "TOI-1246",
+        "dt": 0.000581439454354845,
+        "p_inner": 0.0116287890870969,
+        "est_cpu_h_per_run": 0.16207328023547246,
+        "array_index": 19
+      },
+      {
+        "system_index": 37,
+        "name": "Kepler-265",
+        "dt": 0.0009154415127496165,
+        "p_inner": 0.01830883025499233,
+        "est_cpu_h_per_run": 0.14687538113684317,
+        "array_index": 20
+      },
+      {
+        "system_index": 46,
+        "name": "Kepler-33",
+        "dt": 0.0007754577705303938,
+        "p_inner": 0.015509155410607876,
+        "est_cpu_h_per_run": 0.13160930791416256,
+        "array_index": 21
+      },
+      {
+        "system_index": 36,
+        "name": "Kepler-26",
+        "dt": 0.0005240467536394058,
+        "p_inner": 0.010480935072788114,
+        "est_cpu_h_per_run": 0.09590265700466151,
+        "array_index": 22
+      },
+      {
+        "system_index": 9,
+        "name": "Kepler-102",
+        "dt": 0.000725189707423599,
+        "p_inner": 0.014503794148471978,
+        "est_cpu_h_per_run": 0.09202904567006331,
+        "array_index": 23
+      },
+      {
+        "system_index": 10,
+        "name": "Kepler-106",
+        "dt": 0.0008264500055585214,
+        "p_inner": 0.016529000111170426,
+        "est_cpu_h_per_run": 0.09169029974893268,
+        "array_index": 24
+      },
+      {
+        "system_index": 8,
+        "name": "KOI-351",
+        "dt": 0.0009188126395879992,
+        "p_inner": 0.018376252791759983,
+        "est_cpu_h_per_run": 0.07824146988356405,
+        "array_index": 25
+      },
+      {
+        "system_index": 16,
+        "name": "Kepler-154",
+        "dt": 0.0005146402547768049,
+        "p_inner": 0.010292805095536098,
+        "est_cpu_h_per_run": 0.07754462607383934,
+        "array_index": 26
+      },
+      {
+        "system_index": 59,
+        "name": "Kepler-84",
+        "dt": 0.0005928912210515518,
+        "p_inner": 0.011857824421031034,
+        "est_cpu_h_per_run": 0.061854674103519434,
+        "array_index": 27
+      },
+      {
+        "system_index": 53,
+        "name": "Kepler-55",
+        "dt": 0.000313596463525155,
+        "p_inner": 0.0062719292705031,
+        "est_cpu_h_per_run": 0.05728102174995459,
+        "array_index": 28
+      },
+      {
+        "system_index": 50,
+        "name": "Kepler-37",
+        "dt": 0.0018298594562825956,
+        "p_inner": 0.03659718912565191,
+        "est_cpu_h_per_run": 0.0521693208159193,
+        "array_index": 29
+      },
+      {
+        "system_index": 43,
+        "name": "Kepler-305",
+        "dt": 0.00045711192557184503,
+        "p_inner": 0.0091422385114369,
+        "est_cpu_h_per_run": 0.0498394808405493,
+        "array_index": 30
+      },
+      {
+        "system_index": 11,
+        "name": "Kepler-107",
+        "dt": 0.00043492727697635216,
+        "p_inner": 0.008698545539527043,
+        "est_cpu_h_per_run": 0.045984115357195064,
+        "est_is_fallback": true,
+        "array_index": 31
+      },
+      {
+        "system_index": 24,
+        "name": "Kepler-208",
+        "dt": 0.0005825479113047417,
+        "p_inner": 0.011650958226094835,
+        "est_cpu_h_per_run": 0.045984115357195064,
+        "est_is_fallback": true,
+        "array_index": 32
+      },
+      {
+        "system_index": 25,
+        "name": "Kepler-215",
+        "dt": 0.0012555239645390746,
+        "p_inner": 0.02511047929078149,
+        "est_cpu_h_per_run": 0.045984115357195064,
+        "est_is_fallback": true,
+        "array_index": 33
+      },
+      {
+        "system_index": 31,
+        "name": "Kepler-238",
+        "dt": 0.0003044636484172572,
+        "p_inner": 0.006089272968345143,
+        "est_cpu_h_per_run": 0.045984115357195064,
+        "est_is_fallback": true,
+        "array_index": 34
+      },
+      {
+        "system_index": 33,
+        "name": "Kepler-245",
+        "dt": 0.0004313310928137537,
+        "p_inner": 0.008626621856275074,
+        "est_cpu_h_per_run": 0.045984115357195064,
+        "est_is_fallback": true,
+        "array_index": 35
+      },
+      {
+        "system_index": 57,
+        "name": "Kepler-79",
+        "dt": 0.0018499324311985023,
+        "p_inner": 0.036998648623970044,
+        "est_cpu_h_per_run": 0.045984115357195064,
+        "array_index": 36
+      },
+      {
+        "system_index": 21,
+        "name": "Kepler-176",
+        "dt": 0.0007857754373704257,
+        "p_inner": 0.015715508747408513,
+        "est_cpu_h_per_run": 0.04066120404818653,
+        "array_index": 37
+      },
+      {
+        "system_index": 29,
+        "name": "Kepler-224",
+        "dt": 0.00040901428205727643,
+        "p_inner": 0.008180285641145528,
+        "est_cpu_h_per_run": 0.03821823654344693,
+        "array_index": 38
+      },
+      {
+        "system_index": 0,
+        "name": "HD 108236",
+        "dt": 0.0005163285263062522,
+        "p_inner": 0.010326570526125043,
+        "est_cpu_h_per_run": 0.020065814923958952,
+        "array_index": 39
+      },
+      {
+        "system_index": 14,
+        "name": "Kepler-1388",
+        "dt": 0.0007448190336297421,
+        "p_inner": 0.014896380672594842,
+        "est_cpu_h_per_run": 0.019841526824038818,
+        "array_index": 40
+      },
+      {
+        "system_index": 5,
+        "name": "K2-285",
+        "dt": 0.0004092740396079234,
+        "p_inner": 0.008185480792158467,
+        "est_cpu_h_per_run": 0.01930204082699102,
+        "array_index": 41
+      },
+      {
+        "system_index": 12,
+        "name": "Kepler-11",
+        "dt": 0.0014008656178115969,
+        "p_inner": 0.028017312356231935,
+        "est_cpu_h_per_run": 0.013756479464539968,
+        "array_index": 42
+      },
+      {
+        "system_index": 63,
+        "name": "TOI-561",
+        "dt": 6.062982194136789e-05,
+        "p_inner": 0.0012125964388273577,
+        "est_cpu_h_per_run": 0.012647687553735944,
+        "array_index": 43
+      },
+      {
+        "system_index": 56,
+        "name": "Kepler-758",
+        "dt": 0.0005939118617850343,
+        "p_inner": 0.011878237235700684,
+        "est_cpu_h_per_run": 0.012594537450433527,
+        "array_index": 44
+      },
+      {
+        "system_index": 13,
+        "name": "Kepler-122",
+        "dt": 0.0007789831928962363,
+        "p_inner": 0.015579663857924725,
+        "est_cpu_h_per_run": 0.00838841243430057,
+        "array_index": 45
+      },
+      {
+        "system_index": 3,
+        "name": "K2-138",
+        "dt": 0.0003211767410673749,
+        "p_inner": 0.006423534821347498,
+        "est_cpu_h_per_run": 0.0075180940278263145,
+        "array_index": 46
+      },
+      {
+        "system_index": 1,
+        "name": "HD 23472",
+        "dt": 0.0005442923366457984,
+        "p_inner": 0.010885846732915969,
+        "est_cpu_h_per_run": 0.00697578409961018,
+        "array_index": 47
+      },
+      {
+        "system_index": 64,
+        "name": "TOI-700",
+        "dt": 0.0013590278672814694,
+        "p_inner": 0.027180557345629384,
+        "est_cpu_h_per_run": 0.005845861587716182,
+        "array_index": 48
+      },
+      {
+        "system_index": 60,
+        "name": "Kepler-85",
+        "dt": 0.0011051449540966187,
+        "p_inner": 0.022102899081932373,
+        "est_cpu_h_per_run": 0.005311704574530161,
+        "array_index": 49
+      },
+      {
+        "system_index": 40,
+        "name": "Kepler-292",
+        "dt": 0.00035510975933712474,
+        "p_inner": 0.007102195186742494,
+        "est_cpu_h_per_run": 0.00530354179407296,
+        "array_index": 50
+      },
+      {
+        "system_index": 32,
+        "name": "Kepler-24",
+        "dt": 0.0005674226349044791,
+        "p_inner": 0.011348452698089581,
+        "est_cpu_h_per_run": 0.005039049505314596,
+        "array_index": 51
+      },
+      {
+        "system_index": 47,
+        "name": "Kepler-338",
+        "dt": 0.001281686458203679,
+        "p_inner": 0.02563372916407358,
+        "est_cpu_h_per_run": 0.0033280256876531155,
+        "array_index": 52
+      },
+      {
+        "system_index": 38,
+        "name": "Kepler-282",
+        "dt": 0.0013209221941651124,
+        "p_inner": 0.026418443883302247,
+        "est_cpu_h_per_run": 0.0026533726625998172,
+        "array_index": 53
+      },
+      {
+        "system_index": 51,
+        "name": "Kepler-402",
+        "dt": 0.000537002550394721,
+        "p_inner": 0.010740051007894418,
+        "est_cpu_h_per_run": 0.0026134335818212315,
+        "array_index": 54
+      },
+      {
+        "system_index": 52,
+        "name": "Kepler-49",
+        "dt": 0.0003679859187029259,
+        "p_inner": 0.007359718374058517,
+        "est_cpu_h_per_run": 0.0012072261279631525,
+        "array_index": 55
+      },
+      {
+        "system_index": 62,
+        "name": "TOI-178",
+        "dt": 0.0002610507064139662,
+        "p_inner": 0.005221014128279323,
+        "est_cpu_h_per_run": 0.0011141176289177792,
+        "array_index": 56
+      },
+      {
+        "system_index": 6,
+        "name": "K2-72",
+        "dt": 0.0007698003589195011,
+        "p_inner": 0.015396007178390021,
+        "est_cpu_h_per_run": 0.0010329252722946485,
+        "array_index": 57
+      },
+      {
+        "system_index": 27,
+        "name": "Kepler-221",
+        "dt": 0.00039297567106473714,
+        "p_inner": 0.007859513421294742,
+        "est_cpu_h_per_run": 0.0008866470662889684,
+        "array_index": 58
+      },
+      {
+        "system_index": 42,
+        "name": "Kepler-304",
+        "dt": 0.00019754088184474624,
+        "p_inner": 0.0039508176368949245,
+        "est_cpu_h_per_run": 0.0006561632012986068,
+        "array_index": 59
+      },
+      {
+        "system_index": 28,
+        "name": "Kepler-223",
+        "dt": 0.0009820728078915534,
+        "p_inner": 0.01964145615783107,
+        "est_cpu_h_per_run": 0.0005682282274085835,
+        "array_index": 60
+      },
+      {
+        "system_index": 17,
+        "name": "Kepler-1542",
+        "dt": 0.000395667591653785,
+        "p_inner": 0.0079133518330757,
+        "est_cpu_h_per_run": 0.0005616442976383532,
+        "array_index": 61
+      },
+      {
+        "system_index": 45,
+        "name": "Kepler-32",
+        "dt": 9.731303913765564e-05,
+        "p_inner": 0.0019462607827531125,
+        "est_cpu_h_per_run": 0.0003764320459796385,
+        "array_index": 62
+      },
+      {
+        "system_index": 23,
+        "name": "Kepler-1987",
+        "dt": 0.0003170046923942926,
+        "p_inner": 0.006340093847885851,
+        "est_cpu_h_per_run": 0.0003020532157477296,
+        "array_index": 63
+      },
+      {
+        "system_index": 35,
+        "name": "Kepler-256",
+        "dt": 0.00022523183931961966,
+        "p_inner": 0.004504636786392393,
+        "est_cpu_h_per_run": 0.00029118416243327353,
+        "array_index": 64
+      },
+      {
+        "system_index": 4,
+        "name": "K2-187",
+        "dt": 0.00010662275728536579,
+        "p_inner": 0.0021324551457073157,
+        "est_cpu_h_per_run": 0.0002491644371670107,
+        "array_index": 65
+      },
+      {
+        "system_index": 65,
+        "name": "TRAPPIST-1",
+        "dt": 0.00020661291397737515,
+        "p_inner": 0.004132258279547503,
+        "est_cpu_h_per_run": 0.00015951643775998926,
+        "array_index": 66
+      }
+    ]
+  }
+}

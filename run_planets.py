@@ -3,6 +3,8 @@ from binary_planets.sim import get_hill_radius, orbits_cross
 from binary_planets.utils import *  # noqa
 
 from os import sys
+import json
+import pathlib
 import time
 import os
 import numpy as np
@@ -14,15 +16,38 @@ global mode
 global pl_num
 global dt
 global t_end
+global integrator
+
+MODE_NAMES = {1: "sin_inj", 2: "bin_inj"}
+RUN_PLAN = pathlib.Path(__file__).resolve().parent / "data" / "run_plan.json"
 
 
-def _init_worker(cfg, m, p, d, t):
-    global cfg_name, mode, pl_num, dt, t_end
+def load_plan_entry(mode, array_index):
+    """Resolve ${LSB_JOBINDEX} through data/run_plan.json.
+
+    The plan orders systems by descending estimated cost so the longest job starts
+    first, and carries a per-system timestep.  Returns (entry, plan)."""
+    plan = json.loads(RUN_PLAN.read_text())
+    try:
+        rows = plan["modes"][MODE_NAMES[mode]]
+    except KeyError:
+        raise SystemExit(f"run_plan.json has no ordering for mode {mode}")
+    if not 1 <= array_index <= len(rows):
+        raise SystemExit(
+            f"array index {array_index} outside 1..{len(rows)} for mode {mode}"
+        )
+    entry = next(r for r in rows if r["array_index"] == array_index)
+    return entry, plan
+
+
+def _init_worker(cfg, m, p, d, t, integ):
+    global cfg_name, mode, pl_num, dt, t_end, integrator
     cfg_name = cfg
     mode     = m
     pl_num   = p
     dt       = d
     t_end    = t
+    integrator = integ
 
 compact_sys = np.load("data/compact_systems_run_composite.npy", allow_pickle=True)
 # compact_sys = np.load("data/TOI-178.npy", allow_pickle=True)
@@ -67,7 +92,14 @@ def one_run(run_num, cfg):
         cfg["name"] = name
         cfg["m_star"] = float(get_stellar_mass(system))
         print(f"m_star: {cfg['m_star']}", file=sys.stderr)
-        semi_majors = get_semimajor(system)
+        # The axes must be drawn against the same stellar mass stored in the config: for
+        # planets without published error bars they scale rigidly with it.  See task 0.8.
+        semi_majors = get_semimajor(system, cfg["m_star"])
+        # Gap edges as *simulated*, not as catalogued.  Drawing the injected planet
+        # between the catalog edges while the bounding planets moved is what put 13.6% of
+        # runs outside the gap they were supposed to be in.
+        i_in, i_out = gap_indices(system)
+        gap_lo, gap_hi = semi_majors[i_in], semi_majors[i_out]
         es = get_eccen(system)
         incs = get_inc(system)
         masses = get_mass(system)
@@ -92,7 +124,7 @@ def one_run(run_num, cfg):
             # the existing planets' orbits.
             while True:
                 inj_a = 10 ** np.random.uniform(
-                    np.log10(system["gap"][0]), np.log10(system["gap"][1])
+                    np.log10(gap_lo), np.log10(gap_hi)
                 )
                 inj_e = np.random.uniform(0, 1)
                 if not any(
@@ -112,7 +144,6 @@ def one_run(run_num, cfg):
             cfg["binary"]["m1"] = q * mass_total
             cfg["binary"]["m2"] = (1 - q) * mass_total
             cfg["binary"]["e"] = np.random.uniform(0, 1)
-            cfg["binary"]["e_sys"] = np.random.uniform(0, 1)
             cfg["binary"]["phase"] = np.random.uniform(-np.pi, np.pi)
 
             cfg["binary"]["Omega"] = np.random.uniform(-np.pi, np.pi)
@@ -120,12 +151,22 @@ def one_run(run_num, cfg):
             cfg["binary"]["bin_inc"] = np.arccos(np.random.uniform(-1, 1))
 
 
+            # Built from the *drawn* gap edges, for the same reason as the a draw below:
+            # e_max bounds the COM eccentricity that keeps the pair inside the gap it is
+            # actually being injected into, not the catalog one.  See task 0.8.
+            emax = min(gap_hi/gap_lo - 1,
+                    1- gap_lo/gap_hi
+            )
+            
             # Draw the injected binary, redrawing if the pair's heliocentric
             # orbit (widened by the binary separation so the whole pair is
             # accounted for) crosses any of the existing planets' orbits.
             while True:
+                
+                cfg["binary"]["e_sys"] = np.random.uniform(0, emax)
+
                 bin_a = 10 ** np.random.uniform(
-                    np.log10(system["gap"][0]), np.log10(system["gap"][1])
+                    np.log10(gap_lo), np.log10(gap_hi)
                 )
                 r_hill = get_hill_radius(
                     bin_a, cfg["binary"]["e_sys"], mass_total, cfg["m_star"]
@@ -147,7 +188,8 @@ def one_run(run_num, cfg):
             cfg["binary"]["m2"] = 1e-20
 
         cfg["dt"] = dt
-        cfg["integrator"] = "leapfrog"
+        cfg["integrator"] = integrator
+
 #         i = 1
 #         try:
 #             os.mkdir(f"output/{cfg['name']}")
@@ -173,7 +215,7 @@ def run_dispatcher(run_num):
     cfg = {
         "name": cfg_name,
         "binary": {},
-        "n_log": 1000,
+        "n_log": 10000,
     }
 
     sys_num = pl_num  # np.random.randint(n_sys)
@@ -210,13 +252,32 @@ if __name__ == "__main__":
     try:
         cfg_name = sys.argv[1]
         mode = int(sys.argv[2])  # 0 for no inj, 1 for single inj, 2 for binary inj
-        pl_num = int(sys.argv[3]) - 1  # bsub doesn't allow for an index of 0
+        index = int(sys.argv[3])  # bsub doesn't allow for an index of 0
+        dt_arg = sys.argv[4] if len(sys.argv) > 4 else None
+
+        if dt_arg == "auto":
+            # Plan-driven: the index is a position in the cost-ordered job list,
+            # NOT a direct index into compact_systems_run_composite.npy, and dt and
+            # the integrator come from the plan rather than the command line.
+            entry, plan = load_plan_entry(mode, index)
+            pl_num     = entry["system_index"]
+            dt         = entry["dt"]
+            integrator = plan["integrator"]
+            t_end      = float(sys.argv[5]) if len(sys.argv) > 5 else float(plan["t_end"])
+            print(
+                f"[plan] array {index} -> {entry['name']} (system {pl_num}), "
+                f"dt={dt:.3e}, integrator={integrator}, t_end={t_end:.3e}",
+                file=sys.stderr,
+            )
+        else:
+            pl_num     = index - 1
+            dt         = float(dt_arg) if dt_arg is not None else 1e-5
+            t_end      = float(sys.argv[5]) if len(sys.argv) > 5 else 1_000_000
+            integrator = "leapfrog"
+
         print(
             f"Simulating {compact_sys[pl_num]['name']}, mode = {mode}", file=sys.stderr
         )
-
-        dt    = float(sys.argv[4]) if len(sys.argv) > 4 else 1e-5
-        t_end = float(sys.argv[5]) if len(sys.argv) > 5 else 1_000_000
 
     except Exception as e:
         print("Error parsing arguments")
@@ -229,5 +290,5 @@ if __name__ == "__main__":
     #     one_run(i)
 
     with Pool(initializer=_init_worker,
-              initargs=(cfg_name, mode, pl_num, dt, t_end)) as p:
+              initargs=(cfg_name, mode, pl_num, dt, t_end, integrator)) as p:
         p.map(run_dispatcher, range(0, n_runs))
