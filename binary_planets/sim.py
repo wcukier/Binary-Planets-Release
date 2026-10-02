@@ -182,6 +182,18 @@ STARTUP_T_END = 10
 STARTUP_STEPS = 100
 
 
+# LLM-GENERATED — UNVERIFIED (tier: simulation).
+def _integrate(sim, t):
+    """Integrate to t; on contact return a collision halt string, else ""."""
+    try:
+        sim.integrate(t, exact_finish_time=0)
+    except rebound.Collision:
+        lc = [p.last_collision for p in sim.particles]
+        hit = [i for i, v in enumerate(lc) if v >= 0 and v == max(lc)]
+        return f"code=collision;planet={','.join(map(str, hit))};t={sim.t}\t"
+    return ""
+
+
 class CheckpointRequested(Exception):
     """Raised out of simulate_resumable when should_checkpoint() asks to stop.
 
@@ -250,7 +262,9 @@ def simulate_resumable(sim, log, t_end, mode, *, resume=None, should_checkpoint=
     if phase == "startup":
         for i in range(i0, len(startup_ts)):
             t = startup_ts[i]
-            sim.integrate(t, exact_finish_time=0)
+            halt = _integrate(sim, t)
+            if halt:
+                return sim, log, halt, sim.t, "startup", i + 1
             stepped, halt = log_elements(sim, log, mode, a_com0)
             log[3] = stepped[3]
             if halt:
@@ -261,7 +275,9 @@ def simulate_resumable(sim, log, t_end, mode, *, resume=None, should_checkpoint=
 
     for i in range(i0, len(main_ts)):
         t = main_ts[i]
-        sim.integrate(t, exact_finish_time=0)
+        halt = _integrate(sim, t)
+        if halt:
+            return sim, log, halt, sim.t, "main", i + 1
         stepped, halt = log_elements(sim, log, mode, a_com0)
         log[3] = stepped[3]
         if halt:

@@ -124,6 +124,8 @@ def load(outdir, *, expect_mode=None):
 
     try:
         sim = rebound.Simulation(str(sim_p))
+        if sim.collision != "none":
+            sim.collision_resolve = "halt"
         z = np.load(npz_p)
         elements, distances, t_step = z["elements"], z["distances"], int(z["t_step"])
     except Exception as exc:

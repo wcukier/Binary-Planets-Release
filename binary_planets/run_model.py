@@ -71,6 +71,8 @@ def build_sim(config, mode, run_notes=None):
         note(f"Added secondary_{i}.\n")
         note(f"# of particles: sim")
     note("*************************************************\n\n")
+    if "r_star" in config:
+        set_radii(sim, config, mode)
     # LLM-GENERATED — UNVERIFIED (tier: simulation).  Stored in the config so a resumed
     # run uses the t = 0 value; see log_elements.
     if mode == 2:
@@ -110,6 +112,29 @@ def pair_state(sim):
     return {"pair_E2": float(E2), "pair_bound": bool(E2 < 0),
             "pair_r_hill": float(r / r_hill),
             "pair_com_a": float(com_a), "pair_com_bound": bool(E_com < 0)}
+
+
+# LLM-GENERATED — UNVERIFIED (tier: simulation).
+def set_radii(sim, config, mode):
+    """Give every body its physical radius and halt the integration on contact.
+
+    Particle order matches build_sim: star, the pair (mode 2), then the secondaries.
+    Configs without radii (drawn before collisions existed) run without detection.
+    """
+    r_e = RADIUS_EARTH / AU_TO_M
+    ps = sim.particles
+    ps[0].r = config["r_star"] * RADIUS_SUN / AU_TO_M
+    k = 1
+    if mode == 2:
+        ps[1].r = config["binary"]["radius1"] * r_e
+        ps[2].r = config["binary"]["radius2"] * r_e
+        k = 3
+    for i in range(int(config["n_secondary"])):
+        ps[k + i].r = config[f"secondary_{i}"]["radius"] * r_e
+    for p in ps:
+        p.last_collision = -1.0
+    sim.collision = "direct"
+    sim.collision_resolve = "halt"
 
 
 def summarize(sim, halt, t_end, t_elapsed, energy0, angmom0, mode=None):

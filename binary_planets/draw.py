@@ -34,6 +34,7 @@ class NoRoomForInjection(RuntimeError):
 
 from binary_planets.sim import (get_hill_radius, known_planets_cross,
                                 orbits_cross)
+from binary_planets.forecaster import mr_forecast as mr
 from binary_planets.utils import (
     gap_indices,
     get_eccen,
@@ -206,10 +207,38 @@ def _draw_once(system, mode, *, dt, t_end, integrator, name, n_log):
         cfg["binary"]["m1"] = 1e-20
         cfg["binary"]["m2"] = 1e-20
 
+    _draw_radii(cfg, system, mode)
     cfg["dt"] = dt
     cfg["integrator"] = integrator
 
     return cfg
+
+
+# LLM-GENERATED — UNVERIFIED (tier: simulation): physical radii for collision detection.
+FORECAST_MIN_MASS = 3e-4   # M_earth; Mpost2R returns None below this
+
+
+def _forecast_radius(m_earth):
+    return float(mr.Mpost2R([max(m_earth, FORECAST_MIN_MASS)], "Earth", classify="No")[0])
+
+
+def _draw_radii(cfg, system, mode):
+    """Radii in Earth radii (planets) and solar radii (star).
+
+    Known planets take the catalogue central radius; injected bodies are forecast from
+    their drawn mass.  The catalogue has no stellar radius, so the star uses the
+    main-sequence R = M^0.8.  Drawn last so the other parameters' draws are unchanged.
+    """
+    n_known = len(system["a"])
+    for j in range(n_known):
+        cfg[f"secondary_{j}"]["radius"] = float(system["r"][j])
+    if mode == 1:
+        j = n_known
+        cfg[f"secondary_{j}"]["radius"] = _forecast_radius(cfg[f"secondary_{j}"]["m"])
+    if mode == 2:
+        cfg["binary"]["radius1"] = _forecast_radius(cfg["binary"]["m1"])
+        cfg["binary"]["radius2"] = _forecast_radius(cfg["binary"]["m2"])
+    cfg["r_star"] = cfg["m_star"] ** 0.8
 
 
 def draw_config(system, mode, *, dt, t_end, integrator, name, n_log=10000):
