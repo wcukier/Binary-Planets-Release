@@ -2,17 +2,30 @@ from scipy.stats import skewnorm
 from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
 import numpy as np
+import os
+import pathlib
 from .forecaster import mr_forecast as mr
 import sys as system
+
+# Resolve data/ relative to the repository, not the working directory.  These loads
+# happen at import time, and on a batch execute node (HTCondor scratch, LSF job dir)
+# the CWD is not the repo root.  BP_DATA_DIR overrides for containers that stage the
+# data elsewhere.
+DATA_DIR = pathlib.Path(
+    os.environ.get("BP_DATA_DIR",
+                   pathlib.Path(__file__).resolve().parent.parent / "data")
+)
+
+
 def _cdf(x,a,b,c):
     return skewnorm.cdf(x,a,b,c)
 
-mass, cdf = np.load("data/st_mass_dist.npy")
+mass, cdf = np.load(DATA_DIR / "st_mass_dist.npy")
 mass_func = interp1d(cdf, mass)
 MASS_CDF_MIN = np.min(cdf)
 MASS_CDF_MAX = np.max(cdf)
 
-e, cdf = np.load("data/e_dist.npy")
+e, cdf = np.load(DATA_DIR / "e_dist.npy")
 e_func = interp1d(cdf, e)
 E_CDF_MIN = np.min(cdf)
 E_CDF_MAX = np.max(cdf)
@@ -49,10 +62,21 @@ def get_eccen(sys):
             es[i]=0
         else:
             # e[i] = 0
-            while True:
+            # Bounded: draw_rv samples uniform(mid+lo, mid+hi), so if mid+hi <= 0 the
+            # acceptable set is empty and an unbounded loop would hang.  No planet in
+            # the current catalogue can trigger that (checked: 0 with an empty set, 0
+            # with acceptance below 5%), but the guard costs nothing and the catalogue
+            # is an input, not a constant.
+            for _ in range(ECCEN_MAX_ATTEMPTS):
                 es[i] = draw_rv(mids[i], los[i], his[i])
-#                 print(es[i])
-                if es[i]>=0: break
+                if es[i] >= 0:
+                    break
+            else:
+                raise RuntimeError(
+                    f"could not draw a non-negative eccentricity for {sys['name']} "
+                    f"planet {i} in {ECCEN_MAX_ATTEMPTS} attempts "
+                    f"(e={mids[i]}, lo={los[i]}, hi={his[i]})"
+                )
 
     return es
 
@@ -121,6 +145,7 @@ def get_mass(sys):
 # enough to re-order the known planets in 4.95% of runs and to put the injected planet
 # outside the drawn gap in 13.6%.  Remove this banner only after POLICY.md §2 checks.
 AXIS_MAX_ATTEMPTS = 10_000  # ordering-rejection guard; see get_semimajor
+ECCEN_MAX_ATTEMPTS = 10_000  # non-negativity guard; see get_eccen
 
 
 def stellar_axis_scale(sys, m_star):

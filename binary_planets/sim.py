@@ -93,6 +93,19 @@ def orbits_cross(a1, e1, a2, e2, buffer1=0, buffer2=0):
 
 
 
+def known_planets_cross(semi_majors, eccentricities):
+    """True if any two of the known planets are drawn onto crossing orbits.
+
+    The known planets are observed and have coexisted for Gyr, so a draw that puts two
+    of them on crossing orbits describes a system that cannot exist.  Used to reject
+    such draws before they are simulated -- see the note in binary_planets.draw.
+    """
+    n = len(semi_majors)
+    return any(orbits_cross(semi_majors[j], eccentricities[j],
+                            semi_majors[k], eccentricities[k])
+               for j in range(n) for k in range(j + 1, n))
+
+
 def init_sim(m_star, n_log=1000, integrator="whfast",
              dt=1e-4, n_particles=2, run_notes=False):
     sim=rebound.Simulation()
@@ -111,7 +124,18 @@ def init_sim(m_star, n_log=1000, integrator="whfast",
 def init_binary_planet(sim, m_star, m1, m2, d, a=1, e=0,
                        e_sys=0, phase=0, Omega=0, inc=0,
                        bin_inc=0, run_notes=None):
+    """Add a bound planet pair on an orbit about the star.
 
+    NOTE ON THE ANGLE NAMES -- they read backwards:
+
+        inc      inclination of the pair's MUTUAL orbit (m1 about m2).  Carries Omega.
+        bin_inc  inclination of the pair's CENTRE-OF-MASS orbit about the star.
+                 Its node is fixed at 0, which is harmless: the known planets are
+                 coplanar with random Omega, so the system is azimuthally symmetric.
+
+    Both are measured from the reference plane, so neither is the mutual inclination
+    between the two orbital planes.
+    """
     inc = np.pi - inc
     bin_inc = np.pi - bin_inc
 
@@ -149,24 +173,109 @@ def init_single_planet(sim, m, a, e, inc, omega, Omega):
     sim.move_to_com()
     return sim
 
-def simulate(sim, log, t_end, mode):
+# LLM-GENERATED — UNVERIFIED (tier: simulation): CheckpointRequested,
+# simulate_resumable, and simulate()'s delegation to it.  The rest of this module
+# predates that change.  See Assistant/POLICY.md §2.
+# The 5-year startup window: 100 samples over [0, 10] yr.  A run that halts anywhere in
+# here is a *rejected draw*, not a failure -- run_model returns 1 and the caller redraws.
+STARTUP_T_END = 10
+STARTUP_STEPS = 100
+
+
+class CheckpointRequested(Exception):
+    """Raised out of simulate_resumable when should_checkpoint() asks to stop.
+
+    Carries the exact resume point so the caller can serialize it.  Only ever raised
+    from the main loop -- the startup window is under 5 yr of integration and is where
+    draw rejection happens, so interrupting it would be pointless and would complicate
+    the retry semantics.
+    """
+
+    def __init__(self, phase, i_next, t, log):
+        super().__init__(f"checkpoint requested at {phase}[{i_next}], t={t}")
+        self.phase = phase
+        self.i_next = i_next
+        self.t = t
+        self.log = log        # carries the live cursor; see the note in the main loop
+
+
+def simulate_resumable(sim, log, t_end, mode, *, resume=None, should_checkpoint=None):
+    """Integrate, optionally resuming mid-run and optionally stopping to checkpoint.
+
+    Parameters
+    ----------
+    resume : tuple or None
+        ``(phase, i_next)`` from a checkpoint, where phase is "startup" or "main" and
+        i_next indexes the loop's own linspace.  None starts from the beginning.
+    should_checkpoint : callable or None
+        Polled once per log step in the main loop.  If it returns True,
+        CheckpointRequested is raised.
+
+    Returns
+    -------
+    (sim, log, halt, t, phase, i_next)
+        `phase`/`i_next` describe where integration stopped, so a halt and a completed
+        run are distinguishable from a checkpoint without inspecting the arrays.
+
+    Notes
+    -----
+    Neither the loop phase nor the write cursor is recoverable from the log arrays:
+    the startup loop resets ``log[3] = 1`` on every iteration, so all but the first
+    startup sample overwrite row 1, and ``get_log_len`` returns capacity rather than
+    fill.  Both must be carried explicitly in the checkpoint.
+    """
+    # init_log returns a tuple; log_elements returns a list.  Normalise once so the
+    # cursor is assignable regardless of which the caller passed.
+    log = list(log)
     n_log = get_log_len(log)
-        
-    for t in np.linspace(0, 10, 100):
+    startup_ts = np.linspace(0, STARTUP_T_END, STARTUP_STEPS)
+    main_ts = np.linspace(0, t_end, n_log)[1:]
+    # Main targets below STARTUP_T_END would integrate backwards (TRACE segfaults).
+    if len(main_ts) and main_ts[0] < STARTUP_T_END:
+        raise ValueError(f"log cadence t_end/(n_log-1) = {main_ts[0]:.3g} yr is below the "
+                         f"{STARTUP_T_END} yr startup window; raise t_end or lower n_log")
+
+    phase, i0 = resume if resume is not None else ("startup", 0)
+    halt = ""
+    t = 0.0
+
+    # log_elements returns a *new* list with t_step rebound while mutating the three
+    # arrays in place.  Write the cursor back into our own list rather than rebinding,
+    # and hand that list out on every exit path -- including CheckpointRequested, which
+    # otherwise unwinds leaving the caller with a stale cursor and a silently truncated
+    # log on resume.
+    if phase == "startup":
+        for i in range(i0, len(startup_ts)):
+            t = startup_ts[i]
+            sim.integrate(t, exact_finish_time=0)
+            stepped, halt = log_elements(sim, log, mode)
+            log[3] = stepped[3]
+            if halt:
+                print("Unstable system.  Stopping...", file=sys.stderr)
+                return sim, log, halt, t, "startup", i + 1
+            log[3] = 1
+        phase, i0 = "main", 0
+
+    for i in range(i0, len(main_ts)):
+        t = main_ts[i]
         sim.integrate(t, exact_finish_time=0)
-        log, halt = log_elements(sim, log, mode)
+        stepped, halt = log_elements(sim, log, mode)
+        log[3] = stepped[3]
         if halt:
             print("Unstable system.  Stopping...", file=sys.stderr)
-            return sim, log, halt, t
-        log[3] = 1
-    
-        
-    for t in np.linspace(0, t_end, n_log)[1:]:
-        sim.integrate(t, exact_finish_time=0)
-        log, halt = log_elements(sim, log, mode)
-        if halt:
-            print("Unstable system.  Stopping...", file=sys.stderr)
-            return sim, log, halt, t
+            return sim, log, halt, t, "main", i + 1
+        if should_checkpoint is not None and should_checkpoint():
+            raise CheckpointRequested("main", i + 1, t, log)
+
+    return sim, log, halt, t, "main", len(main_ts)
+
+
+def simulate(sim, log, t_end, mode):
+    """Original entry point: integrate straight through, no checkpointing.
+
+    Delegates to simulate_resumable so the LSF and OSG paths cannot drift apart.
+    """
+    sim, log, halt, t, _phase, _i_next = simulate_resumable(sim, log, t_end, mode)
     return sim, log, halt, t
 
     

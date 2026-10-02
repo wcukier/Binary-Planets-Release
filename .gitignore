@@ -4,3 +4,15 @@ output/*
 **/.ipynb_checkpoints
 plotting/figs/*
 __pycache__/** 
+_testing/**
+output_old/**
+plotting/figs_old/**
+*.zip
+output_trace_2026-09/**
+plotting/scratch/**
+claude/**
+tools/**
+.comments/**
+container/**
+osg/**
+CLAUDE.md

@@ -45,7 +45,14 @@ for name in bin_planets.symmetric_difference(sin_planets):
 
 if new_line: print()
 
+gap_ratios = {sys["name"]: sys["gap"][1]/sys["gap"][0] for sys in run_systems}
+
 systems = sorted(bin_planets & sin_planets)
+
+for name in systems:
+    if name not in gap_ratios:
+        raise KeyError(f"{name} has results but is missing from run_systems")
+
 results = {}
 
 
@@ -168,7 +175,8 @@ single_inj_err = [np.sqrt(results[single_dir][system]["n_survived"])/results[sin
 binary_inj_err = [np.sqrt(results[binary_dir][system]["n_survived"])/results[binary_dir][system]["n_act"] for system in systems]
 
 
-large_gap = np.array([sys["gap"][1]/sys["gap"][0] > 1.95 for sys in run_systems if sys["name"] != "Kepler-324"])
+gaps = np.array([gap_ratios[system] for system in systems])
+large_gap = gaps > 1.95
 
 single_inj_hist = np.array(single_inj)
 single_inj_hist[single_inj_hist < 1e-4] = 10**(-4.7)
@@ -206,12 +214,12 @@ plt.plot([-4, -4+d], [-20*d, +20*d], clip_on=False, c='k', lw=.5, zorder=6)
 
 plt.xticks([-4.75, -3.25, -2.25, -1.25, -0.25], [r"", r"", r"", r"", r""])
 plt.xlim(-5.25, 1)
-plt.ylim(0, 26)
-plt.text(-5, 21, "Single Injection", fontsize=16)
+plt.ylim(0, 36)
+plt.text(0.75, 29, "Single Injection", fontsize=16, ha="right")
 
 plt.ylabel("Number of Systems", fontsize=16)
 
-plt.legend(loc=1)
+plt.legend(loc=2, fontsize=16)
 
 plt.subplot(212)
 
@@ -222,7 +230,7 @@ plt.hist([np.log10(binary_inj_hist[~large_gap]), np.log10(binary_inj_hist[large_
 plt.hist([np.log10(binary_inj_hist)], histtype="step",
          color=c1dd, bins=bins, linewidth=2)
 
-plt.text(-5, 21, "Binary Injection", fontsize=16)
+plt.text(-5, 29, "Binary Injection", fontsize=16)
 
 d = .05
 plt.plot([-4-d/2, -4+d/2], [0,0], clip_on=False, c="white",  zorder=5)
@@ -231,7 +239,7 @@ plt.plot([-4, -4+d], [-20*d, +20*d], clip_on=False, c='k', lw=.5, zorder=6)
 
 plt.xticks([-4.75, -3.25, -2.25, -1.25, -0.25], [r"0\%",  r"0.1\%", r"1\%", r"10\%", r"100\%"])
 plt.xlim(-5.25, 1)
-plt.ylim(0, 26)
+plt.ylim(0, 36)
 plt.legend(loc=1, fontsize=16)
 plt.xlabel("Survival Fraction")
 plt.ylabel("Number of Systems", fontsize=16)
@@ -250,13 +258,13 @@ cutoff = 0
 single_inj = np.array(single_inj)
 binary_inj = np.array(binary_inj)
 
-single_inj_error = np.array([np.sqrt(results[single_dir][system]["n_survived"]) 
-                             / results[single_dir][system]["n_act"] 
-                             for system in systems if system != "Kepler-324"])
+single_inj_error = np.array([np.sqrt(results[single_dir][system]["n_survived"])
+                             / results[single_dir][system]["n_act"]
+                             for system in systems])
 
-binary_inj_error = np.array([np.sqrt(results[binary_dir][system]["n_survived"]) 
-                             / results[binary_dir][system]["n_act"] 
-                             for system in systems if system != "Kepler-324"])
+binary_inj_error = np.array([np.sqrt(results[binary_dir][system]["n_survived"])
+                             / results[binary_dir][system]["n_act"]
+                             for system in systems])
 
 
 mask = ((binary_inj/(single_inj+1e-20) > 1) * ((single_inj > 1e-3) + (binary_inj > 1e-3))) + binary_inj > 0.01
@@ -285,8 +293,8 @@ plt.xticks(xs+width/2, labels[mask], rotation=(-60), ha="left", rotation_mode="a
 plt.ylabel("Survival Fraction")
 
 plt.legend()
-plt.text(15, 0.7e-5, "* Large Gap System")
-plt.ylim(1e-4, 1e-1)
+plt.text(15, 0.7e-4, "* Large Gap System")
+plt.ylim(1e-3, 1)
 plt.yscale("log")
 plt.tight_layout()
 plt.savefig(HERE / "figs" / "figure7_survival_frac.png", transparent=True, dpi=500)
@@ -294,8 +302,6 @@ print("Saved figure: figs/figure7_survival_frac.png")
 
 
 # ================ Survival Frac by gap size (Fig 4) ========================
-
-gaps = np.array([sys["gap"][1]/sys["gap"][0]  for sys in run_systems if sys["name"] != "Kepler-324"])
 
 plt.subplots(figsize=(9,6.5))
 

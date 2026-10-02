@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.stats import describe
-from matplotlib import pyplot as plt
+# pyplot is unused here -- the only references (plot_corner's savefig/close) are
+# commented out.  Kept out of the import chain so batch jobs do not load matplotlib.
 from os import sys
 
 def init_log(n_log, n_particles):
@@ -25,6 +26,14 @@ def log_state_vectors(sim, states, t_step):
     return states
 
 
+def _bounds_halt(o, planet):
+    if (o.a < 0) or (o.a > 5):
+        return f"code=a_out_of_bounds;planet={planet};a={o.a}\t"
+    if (o.e < 0) or (o.e > 1):
+        return f"code=e_out_of_bounds;planet={planet};e={o.e}\t"
+    return ""
+
+
 def log_elements(sim, log, mode):
     # sim.status()
     particles = sim.particles
@@ -45,11 +54,15 @@ def log_elements(sim, log, mode):
         o = p.orbit(primary=primary)
         elements[t_step, i-1] = [o.a, o.e, o.inc, o.Omega, o.omega, sim.t]
         
-        if p.m > 1e-15:
-            if (o.a < 0) or (o.a > 5):
-                halt += f"code=a_out_of_bounds;planet={i};a={o.a}\t"
-            elif (o.e < 0) or (o.e > 1):
-                halt += f"code=e_out_of_bounds;planet={i};e={o.e}\t"
+        if p.m > 1e-15 and not (mode == 2 and i in (1, 2)):
+            halt += _bounds_halt(o, i)
+
+    # LLM-GENERATED — UNVERIFIED (tier: simulation): pair bounds test on the centre of mass.
+    # A component's own heliocentric orbit includes its motion about its partner, so the
+    # pair (particles 1, 2) is tested as one body.
+    if mode == 2:
+        com = sim.com(first=1, last=3)
+        halt += _bounds_halt(com.orbit(primary=particles[0], G=sim.G), "1,2")
 
     states = log_state_vectors(sim, states, t_step)
 

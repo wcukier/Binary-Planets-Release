@@ -3,6 +3,8 @@
   "t_end": 1000000.0,
   "integrator": "trace",
   "n_runs": 1000,
+  "n_log": 10000,
+  "seed_entropy": 11400714819323198485,
   "cost_model": {
     "A_bin": 1.84e-05,
     "B_bin": 1.85e-06,

@@ -69,9 +69,19 @@ def add_to_array(arr, config, keys, i, stable, bin=True, n=12000, secondary=True
 run_systems = np.load(ROOT / "data" / "compact_systems_run_composite.npy", allow_pickle=True)
 all_names = [sys["name"] for sys in run_systems if sys["name"]]
 
-bin_planets = {d.name for d in (ROOT / "output" / "bin_inj").iterdir() if d.is_dir() and (d / "collated_results.npz").exists()}
-sin_planets = {d.name for d in (ROOT / "output" / "sin_inj").iterdir() if d.is_dir() and (d / "collated_results.npz").exists()}
-valid_planets = bin_planets & sin_planets
+# BP_OUTPUT_ROOT lets this run against a pass other than output/ (e.g. the 2026-09 trace
+# grid) without forking the script.  BP_REQUIRE_SIN=0 drops the requirement that a system
+# also have single-injection output -- the binary corner plot never reads sin_inj, and the
+# trace grid has no single-injection data at all.
+OUTPUT_ROOT = pathlib.Path(os.environ.get("BP_OUTPUT_ROOT", ROOT / "output"))
+FIG_SUFFIX = os.environ.get("BP_FIG_SUFFIX", "")
+
+bin_planets = {d.name for d in (OUTPUT_ROOT / "bin_inj").iterdir() if d.is_dir() and (d / "collated_results.npz").exists()}
+if os.environ.get("BP_REQUIRE_SIN", "1") == "1":
+    sin_planets = {d.name for d in (OUTPUT_ROOT / "sin_inj").iterdir() if d.is_dir() and (d / "collated_results.npz").exists()}
+    valid_planets = bin_planets & sin_planets
+else:
+    valid_planets = bin_planets
 names = [name for name in all_names if name in valid_planets]
 # names = ["Kepler-186"]
 
@@ -83,7 +93,7 @@ stable_t = None
 stable_omega = []
 unstable_omega = []
 for system in tqdm(names):
-    cached_data =  np.load(ROOT / "output" / dir / system / "collated_results.npz", allow_pickle=True)
+    cached_data =  np.load(OUTPUT_ROOT / dir / system / "collated_results.npz", allow_pickle=True)
     cached_summaries = cached_data["summaries"]
     cached_cfgs = cached_data["cfgs"]
     cached_elements = cached_data["elements"]
@@ -150,6 +160,12 @@ for system in tqdm(names):
         keys[keys=="bin/m1"] = "bin/m_tot"
         keys[keys=="bin/m2"] = "bin/q"
 
+        # Angles are stored in radians but reported in degrees everywhere in the text and
+        # by the referee (the 39.2-140.8 deg LK window, Nesvorny's 50-140 deg band), so the
+        # axes are converted here rather than leaving the reader to translate.
+        for _k in ("bin/inc", "bin/bin_inc"):
+            arr[:, keys == _k] = np.degrees(arr[:, keys == _k])
+
         hill_radius = get_hill_radius(arr[:, keys=="bin/a"], 
                                       arr[:, keys=="bin/e_sys"], 
                                       arr[:, keys=="bin/m_tot"], 
@@ -170,7 +186,8 @@ for system in tqdm(names):
 
 
 param_labels = ["Total Mass \n" r"[M$_\oplus$]", "Mass Ratio", "Binary a \n[Hill Radii]",
-                "Binary e", "COM a \n(Rescaled)", "COM e", "Binary \nInclination\n [rad]", "COM \nInclination \n [rad]"]
+                "Binary e", "COM a \n(Rescaled)", "COM e",
+                "Binary \nInclination\n [deg]", "COM \nInclination \n [deg]"]
 
 good_keys = ['bin/m_tot', 'bin/q', 'bin/d', 'bin/e', 'bin/a', 'bin/e_sys',  'bin/inc', 'bin/bin_inc']
 
@@ -283,4 +300,5 @@ for i in range(n_vars+1):
 fig.subplots_adjust(hspace=0.05, wspace=0.05)  # a) reduce spacing
 
 
-plt.savefig(HERE / "figs" / "figure6_corner_binary.png")
+plt.savefig(HERE / "figs" / f"figure6_corner_binary{FIG_SUFFIX}.png", dpi=150,
+            bbox_inches="tight")
