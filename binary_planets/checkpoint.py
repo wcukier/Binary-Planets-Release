@@ -55,7 +55,7 @@ def exists(outdir):
 
 
 def save(outdir, sim, log, *, phase, i_next, config, mode, energy0, angmom0,
-         t_wall_accum, attempt, seed, git_hash=None):
+         t_wall_accum, attempt, seed, git_hash=None, cpu_accum=0.0):
     """Write a checkpoint.  Commit marker (`checkpoint.json`) is written last."""
     sim_p, npz_p, json_p = _paths(outdir)
 
@@ -82,6 +82,7 @@ def save(outdir, sim, log, *, phase, i_next, config, mode, energy0, angmom0,
         "energy0": float(energy0),
         "angmom0": [float(x) for x in angmom0],
         "t_wall_accum": float(t_wall_accum),
+        "cpu_accum": float(cpu_accum),
         "attempt": int(attempt),
         "seed": int(seed),
         "rebound_version": rebound.__version__,
@@ -135,6 +136,23 @@ def load(outdir, *, expect_mode=None):
     states = np.zeros((elements.shape[0], elements.shape[1], 7)) * np.nan
     log = [elements, distances, states, t_step]
     return sim, log, meta
+
+
+def pack(outdir):
+    """The checkpoint's three files as a dict of arrays/strings, for a handoff record."""
+    sim_p, npz_p, json_p = _paths(outdir)
+    return {"ckpt_sim": np.frombuffer(sim_p.read_bytes(), dtype=np.uint8),
+            "ckpt_npz": np.frombuffer(npz_p.read_bytes(), dtype=np.uint8),
+            "ckpt_json": json_p.read_text()}
+
+
+def unpack(record, outdir):
+    """Inverse of pack: write the checkpoint files, commit marker last."""
+    sim_p, npz_p, json_p = _paths(outdir)
+    pathlib.Path(outdir).mkdir(parents=True, exist_ok=True)
+    sim_p.write_bytes(np.asarray(record["ckpt_sim"], dtype=np.uint8).tobytes())
+    npz_p.write_bytes(np.asarray(record["ckpt_npz"], dtype=np.uint8).tobytes())
+    json_p.write_text(str(record["ckpt_json"]))
 
 
 def clear(outdir):

@@ -311,10 +311,15 @@ CHECKPOINTED = 2  # checkpoint on disk; caller should exit with the checkpoint c
 
 
 def run_model_resumable(config, mode, outdir=".", *, ckpt_dir=None,
-                        should_checkpoint=None, attempt=0, seed=0, git_hash=None):
+                        should_checkpoint=None, attempt=0, seed=0, git_hash=None,
+                        cpu_budget_s=None):
     """Run one simulation, able to resume from and write checkpoints.
 
     Returns one of DONE / REJECTED / CHECKPOINTED.
+
+    CPU time is accumulated across every execution of the run (rejected draws
+    included); once it reaches ``cpu_budget_s`` the run checkpoints as if
+    should_checkpoint() had fired.
 
     On resume, ``config`` is ignored in favour of the config stored in the checkpoint,
     and E0/L0 come from the checkpoint rather than being recomputed -- recomputing them
@@ -329,6 +334,7 @@ def run_model_resumable(config, mode, outdir=".", *, ckpt_dir=None,
 
     resume = None
     t_wall_accum = 0.0
+    cpu_prev = 0.0
 
     if ckpt.exists(ckpt_dir):
         try:
@@ -341,6 +347,7 @@ def run_model_resumable(config, mode, outdir=".", *, ckpt_dir=None,
             Lx0, Ly0, Lz0 = meta["angmom0"]
             resume = (meta["phase"], meta["i_next"])
             t_wall_accum = meta["t_wall_accum"]
+            cpu_prev = meta.get("cpu_accum", 0.0)
             attempt = meta["attempt"]
             seed = meta["seed"]
         except ckpt.CheckpointMismatch as exc:
@@ -365,18 +372,24 @@ def run_model_resumable(config, mode, outdir=".", *, ckpt_dir=None,
         E0 = sim.energy()
         Lx0, Ly0, Lz0 = sim.angular_momentum()
 
+    def stop():
+        if should_checkpoint is not None and should_checkpoint():
+            return True
+        return cpu_budget_s is not None and cpu_prev + time.process_time() >= cpu_budget_s
+
     t0 = time.time()
     try:
         _, log, halt, t_end, _phase, _i = simulate_resumable(
             sim, log, config["t_end"], mode,
-            resume=resume, should_checkpoint=should_checkpoint,
+            resume=resume, should_checkpoint=stop,
             a_com0=config["binary"]["a_com0"] if mode == 2 else None,
         )
     except CheckpointRequested as c:
         ckpt.save(ckpt_dir, sim, c.log, phase=c.phase, i_next=c.i_next,
                   config=config, mode=mode, energy0=E0, angmom0=(Lx0, Ly0, Lz0),
                   t_wall_accum=t_wall_accum + (time.time() - t0),
-                  attempt=attempt, seed=seed, git_hash=git_hash)
+                  attempt=attempt, seed=seed, git_hash=git_hash,
+                  cpu_accum=cpu_prev + time.process_time())
         return CHECKPOINTED
 
     if t_end < 5:
@@ -389,6 +402,7 @@ def run_model_resumable(config, mode, outdir=".", *, ckpt_dir=None,
     sum_data = summarize(sim, halt, t_end, t_elapsed, E0, (Lx0, Ly0, Lz0), mode=mode)
     sum_data["n_rejected"] = attempt
     sum_data["seed"] = seed
+    sum_data["cpu_s"] = cpu_prev + time.process_time()
     with open(f"{base}/summary.json", "w+") as cf:
         json.dump(sum_data, cf)
 

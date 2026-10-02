@@ -77,6 +77,9 @@ def _iter_npz(planet_dir, is_binary):
         idx = int(f.stem.split("_")[-1])
         try:
             z = np.load(f, allow_pickle=True)
+            if "handoff" in z.files:
+                yield idx, None, "handoff: cpu budget reached, resume elsewhere"
+                continue
             if "summary" not in z.files:
                 yield idx, None, "no summary in npz"
                 continue

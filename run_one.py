@@ -31,6 +31,8 @@ import numpy as np
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
+from binary_planets.checkpoint import pack as ckpt_pack           # noqa: E402
+from binary_planets.checkpoint import unpack as ckpt_unpack       # noqa: E402
 from binary_planets.draw import draw_config                      # noqa: E402
 from binary_planets.plan import (                                # noqa: E402
     MODE_CODES, entry_by_name, load_plan, run_seed, safe_name,
@@ -72,6 +74,11 @@ def parse_args(argv=None):
     ap.add_argument("--max-attempts", type=int, default=200,
                     help="give up after this many startup rejections")
     ap.add_argument("--t-end", type=float, default=None, help="override plan t_end")
+    ap.add_argument("--cpu-budget-hours", type=float, default=None,
+                    help="total CPU budget over all executions; when reached, write a "
+                         "handoff record to --result-npz and exit 0")
+    ap.add_argument("--resume-from", default=None,
+                    help="handoff record (a result .npz with 'handoff') to continue")
     ap.add_argument("--result-npz", default="result.npz",
                     help="collected output; '' to write only the legacy file tree")
     return ap.parse_args(argv)
@@ -112,6 +119,20 @@ def write_result(path, base, config, plan_sha, seed, mode, system, run_index):
         np.savez_compressed(fh, **payload)
 
 
+# LLM-GENERATED — UNVERIFIED (tier: simulation)
+def write_handoff(path, ckpt_dir, meta, plan_sha, mode, system, run_index):
+    """A result file carrying the checkpoint instead of results; resume it elsewhere
+    with --resume-from.  collate.py counts it as incomplete."""
+    payload = {"handoff": True, "mode": mode, "system": system,
+               "run_index": run_index, "seed": meta["seed"],
+               "cpu_accum": meta["cpu_accum"], "plan_sha256": plan_sha,
+               "git_hash": git_hash() or "",
+               "rebound_version": __import__("rebound").__version__}
+    payload.update(ckpt_pack(ckpt_dir))
+    with open(path, "wb") as fh:
+        np.savez_compressed(fh, **payload)
+
+
 def main(argv=None):
     args = parse_args(argv)
     mode = MODE_CODES[args.mode]
@@ -132,6 +153,12 @@ def main(argv=None):
 
     seed = run_seed(plan, mode, entry["system_index"], args.run)
 
+    if args.resume_from:
+        rec = np.load(args.resume_from, allow_pickle=True)
+        if "handoff" not in rec.files or int(rec["seed"]) != seed:
+            raise SystemExit(f"{args.resume_from} is not a handoff record for {name}")
+        ckpt_unpack(rec, ckpt_dir)
+
     deadline = time.monotonic() + args.checkpoint_seconds
 
     def should_checkpoint():
@@ -150,9 +177,20 @@ def main(argv=None):
             cfg, mode, outdir=args.outdir, ckpt_dir=ckpt_dir,
             should_checkpoint=should_checkpoint, attempt=attempt,
             seed=seed, git_hash=git_hash(),
+            cpu_budget_s=None if args.cpu_budget_hours is None
+            else args.cpu_budget_hours * 3600,
         )
         if status == REJECTED:
             attempt += 1
+
+    if status == CHECKPOINTED and args.cpu_budget_hours is not None:
+        meta = json.loads((pathlib.Path(ckpt_dir) / "checkpoint.json").read_text())
+        if meta["cpu_accum"] >= args.cpu_budget_hours * 3600:
+            write_handoff(args.result_npz, ckpt_dir, meta, plan_sha,
+                          args.mode, system_name, args.run)
+            print(f"cpu budget {args.cpu_budget_hours} h reached; handoff written",
+                  file=sys.stderr)
+            return 0
 
     if status == CHECKPOINTED:
         print(f"checkpoint written after {args.checkpoint_seconds:.0f}s; "
