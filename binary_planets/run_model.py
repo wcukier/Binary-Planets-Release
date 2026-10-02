@@ -71,6 +71,10 @@ def build_sim(config, mode, run_notes=None):
         note(f"Added secondary_{i}.\n")
         note(f"# of particles: sim")
     note("*************************************************\n\n")
+    # LLM-GENERATED — UNVERIFIED (tier: simulation).  Stored in the config so a resumed
+    # run uses the t = 0 value; see log_elements.
+    if mode == 2:
+        binary["a_com0"] = com_orbit(sim).a
     return sim, log
 
 
@@ -172,7 +176,8 @@ def run_model(config, mode, debug=0, outdir="output"):
         return sim
 
     t0 = time.time()
-    _, _, halt, t_end = simulate(sim, log, config["t_end"], mode)
+    _, _, halt, t_end = simulate(sim, log, config["t_end"], mode,
+                                 a_com0=config["binary"]["a_com0"] if mode == 2 else None)
     if t_end < 5: return 1
     t1 = time.time()
 
@@ -340,6 +345,7 @@ def run_model_resumable(config, mode, outdir=".", *, ckpt_dir=None,
         _, log, halt, t_end, _phase, _i = simulate_resumable(
             sim, log, config["t_end"], mode,
             resume=resume, should_checkpoint=should_checkpoint,
+            a_com0=config["binary"]["a_com0"] if mode == 2 else None,
         )
     except CheckpointRequested as c:
         ckpt.save(ckpt_dir, sim, c.log, phase=c.phase, i_next=c.i_next,

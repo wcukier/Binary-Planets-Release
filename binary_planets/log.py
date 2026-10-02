@@ -34,7 +34,13 @@ def _bounds_halt(o, planet):
     return ""
 
 
-def log_elements(sim, log, mode):
+def com_orbit(sim):
+    """Orbit of the injected pair's (particles 1, 2) centre of mass about the star."""
+    return sim.com(first=1, last=3).orbit(primary=sim.particles[0], G=sim.G)
+
+
+def log_elements(sim, log, mode, a_com0=None):
+    """a_com0: the pair's initial centre-of-mass semi-major axis; required for mode 2."""
     # sim.status()
     particles = sim.particles
     elements, distances, states, t_step = log
@@ -57,19 +63,18 @@ def log_elements(sim, log, mode):
         if p.m > 1e-15 and not (mode == 2 and i in (1, 2)):
             halt += _bounds_halt(o, i)
 
-    # LLM-GENERATED — UNVERIFIED (tier: simulation): pair bounds test on the centre of mass.
-    # A component's own heliocentric orbit includes its motion about its partner, so the
-    # pair (particles 1, 2) is tested as one body.
+    # LLM-GENERATED — UNVERIFIED (tier: simulation): the pair's bounds and unbound tests
+    # use its centre of mass.  A component's own heliocentric orbit includes its motion
+    # about its partner, so the pair (particles 1, 2) is tested as one body.
     if mode == 2:
-        com = sim.com(first=1, last=3)
-        halt += _bounds_halt(com.orbit(primary=particles[0], G=sim.G), "1,2")
+        halt += _bounds_halt(com_orbit(sim), "1,2")
 
     states = log_state_vectors(sim, states, t_step)
 
     d = particles[1] ** particles[2]
     distances[t_step] = d
     if mode == 2:
-        if d > elements[t_step, 0][0]/2:
+        if d > a_com0 / 2:
             halt += f"code=binary_unbound;planet=1,2;d={d}\t"
 
 

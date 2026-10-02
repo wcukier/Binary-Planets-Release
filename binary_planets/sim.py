@@ -199,7 +199,8 @@ class CheckpointRequested(Exception):
         self.log = log        # carries the live cursor; see the note in the main loop
 
 
-def simulate_resumable(sim, log, t_end, mode, *, resume=None, should_checkpoint=None):
+def simulate_resumable(sim, log, t_end, mode, *, resume=None, should_checkpoint=None,
+                       a_com0=None):
     """Integrate, optionally resuming mid-run and optionally stopping to checkpoint.
 
     Parameters
@@ -210,6 +211,8 @@ def simulate_resumable(sim, log, t_end, mode, *, resume=None, should_checkpoint=
     should_checkpoint : callable or None
         Polled once per log step in the main loop.  If it returns True,
         CheckpointRequested is raised.
+    a_com0 : float or None
+        Initial centre-of-mass semi-major axis of the injected pair; required for mode 2.
 
     Returns
     -------
@@ -248,7 +251,7 @@ def simulate_resumable(sim, log, t_end, mode, *, resume=None, should_checkpoint=
         for i in range(i0, len(startup_ts)):
             t = startup_ts[i]
             sim.integrate(t, exact_finish_time=0)
-            stepped, halt = log_elements(sim, log, mode)
+            stepped, halt = log_elements(sim, log, mode, a_com0)
             log[3] = stepped[3]
             if halt:
                 print("Unstable system.  Stopping...", file=sys.stderr)
@@ -259,7 +262,7 @@ def simulate_resumable(sim, log, t_end, mode, *, resume=None, should_checkpoint=
     for i in range(i0, len(main_ts)):
         t = main_ts[i]
         sim.integrate(t, exact_finish_time=0)
-        stepped, halt = log_elements(sim, log, mode)
+        stepped, halt = log_elements(sim, log, mode, a_com0)
         log[3] = stepped[3]
         if halt:
             print("Unstable system.  Stopping...", file=sys.stderr)
@@ -270,12 +273,13 @@ def simulate_resumable(sim, log, t_end, mode, *, resume=None, should_checkpoint=
     return sim, log, halt, t, "main", len(main_ts)
 
 
-def simulate(sim, log, t_end, mode):
+def simulate(sim, log, t_end, mode, a_com0=None):
     """Original entry point: integrate straight through, no checkpointing.
 
     Delegates to simulate_resumable so the LSF and OSG paths cannot drift apart.
     """
-    sim, log, halt, t, _phase, _i_next = simulate_resumable(sim, log, t_end, mode)
+    sim, log, halt, t, _phase, _i_next = simulate_resumable(sim, log, t_end, mode,
+                                                         a_com0=a_com0)
     return sim, log, halt, t
 
     
