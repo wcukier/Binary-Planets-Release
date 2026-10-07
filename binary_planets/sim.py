@@ -42,8 +42,12 @@ def orbital_charcteristics(m1, m2, d, e=0, phase=0, Omega=0, inc=0):
     v_hat2 = v_dir2/np.linalg.norm(v_dir2)
     
     
-    v_vec1 = v_hat1 * v1
-    v_vec2 = v_hat2 * v2
+    # LLM-GENERATED — UNVERIFIED (tier: simulation).  v1, v2 are the transverse speeds;
+    # the radial part, outward from the barycentre, completes a Kepler orbit with
+    # semi-major axis d and eccentricity e at this phase.
+    v_rad = np.sqrt(G_AU_YR_MSUN * (m1 + m2) / (d * (1 - e**2))) * e * np.sin(phase)
+    v_vec1 = v_hat1 * v1 + x_vec1 / r1 * (a1 / d) * v_rad
+    v_vec2 = v_hat2 * v2 + x_vec2 / r2 * (a2 / d) * v_rad
 
     return [x_vec1, v_vec1], [x_vec2, v_vec2]
     
@@ -146,10 +150,11 @@ def init_binary_planet(sim, m_star, m1, m2, d, a=1, e=0,
     [x1, v1], [x2, v2] = orbital_charcteristics(m1, m2, d, inc=inc, e=e, 
                                                 phase=phase, Omega=Omega)
 
-    # oribtal charateristics of the combined planetary system
-    _, [[x0, y0, z0], [vx0, vy0, vz0]] = orbital_charcteristics(m_star, m1+m2, a,
-                                                                inc=bin_inc,
-                                                                e=e_sys)
+    # LLM-GENERATED — UNVERIFIED (tier: simulation).  Orbit of the pair's centre of mass.
+    # Particles are added heliocentric, so it takes its state relative to the star, not
+    # to the star-pair barycentre.
+    [xs, vs], [xp, vp] = orbital_charcteristics(m_star, m1+m2, a, inc=bin_inc, e=e_sys)
+    [x0, y0, z0], [vx0, vy0, vz0] = xp - xs, vp - vs
     if run_notes:
         run_notes.write(f"e: {e}\t e_sys:{e_sys}")
 

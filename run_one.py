@@ -85,6 +85,9 @@ def parse_args(argv=None):
                          "snapshot there, then continue to --t-end")
     ap.add_argument("--n-log-ext", type=int, default=9000,
                     help="extended run: log steps from --t-snapshot to --t-end")
+    ap.add_argument("--replay-draw", type=int, default=None,
+                    help="rerun a completed run: take draw N of the seeded sequence (N = its "
+                         "n_rejected) without integrating the rejected draws")
     ap.add_argument("--result-npz", default="result.npz",
                     help="collected output; '' to write only the legacy file tree")
     return ap.parse_args(argv)
@@ -186,6 +189,27 @@ def main(argv=None):
     np.random.seed(seed)
 
     status, attempt = REJECTED, 0
+    if args.replay_draw is not None:
+        # LLM-GENERATED — UNVERIFIED (tier: simulation).  Rejection integrations consume
+        # no random numbers, so draw N here is the config the run accepted on attempt N.
+        for _ in range(args.replay_draw + 1):
+            cfg = draw_config(system, mode, dt=entry["dt"], t_end=t_end,
+                              integrator=plan["integrator"], name=name, n_log=n_log)
+        if args.t_snapshot is not None:
+            cfg["t_snapshot"] = args.t_snapshot
+            cfg["n_log_ext"] = args.n_log_ext
+        attempt = args.replay_draw
+        status = run_model_resumable(
+            cfg, mode, outdir=args.outdir, ckpt_dir=ckpt_dir,
+            should_checkpoint=should_checkpoint, attempt=attempt,
+            seed=seed, git_hash=git_hash(),
+            cpu_budget_s=None if args.cpu_budget_hours is None
+            else args.cpu_budget_hours * 3600,
+        )
+        if status == REJECTED:
+            print(f"replayed draw {args.replay_draw} for {name} halted inside the startup "
+                  "window", file=sys.stderr)
+            return 4
     while status == REJECTED and attempt < args.max_attempts:
         cfg = draw_config(system, mode, dt=entry["dt"], t_end=t_end,
                           integrator=plan["integrator"], name=name, n_log=n_log)

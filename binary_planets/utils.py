@@ -104,9 +104,11 @@ def get_inc(sys):
 MAX_MASS_ATTEMPTS = 10_000
 
 
-def get_mass(sys):
+def get_mass(sys, return_radii=False):
     # Use the measured mass when there is one; fall back to the mass-radius relation
     # only when the mass is absent or flagged as an upper limit (mass_lim == 1).
+    # With return_radii, also return the radius each fallback mass came from (NaN for
+    # measured masses).
     mass_mid = sys["mass"]
     mass_upper = sys["mass_upper"]
     mass_lower = sys["mass_lower"]
@@ -115,12 +117,14 @@ def get_mass(sys):
     r_upper = sys["r_upper"]
     r_lower = sys["r_lower"]
     mass = np.zeros(len(mass_mid))
+    radii = np.full(len(mass_mid), np.nan)
     for i in range(len(mass)):
         no_measurement = np.isnan(mass_mid[i]) or mass_lim[i] == 1
         for attempt in range(MAX_MASS_ATTEMPTS):
             override_break = 0
             if no_measurement:
                 r = draw_rv(r_mid[i], r_lower[i], r_upper[i])
+                radii[i] = r
                 mass[i] = mr.Rpost2M([r], "Earth", 1e5, classify="No")[0]
                 # Reject only against a genuine upper limit, never a central value.
                 if mass_lim[i] == 1 and mass[i] > mass_mid[i]:
@@ -136,7 +140,7 @@ def get_mass(sys):
                 f"{MAX_MASS_ATTEMPTS} attempts (mass={mass_mid[i]}, lim={mass_lim[i]}, "
                 f"r={r_mid[i]})"
             )
-    return mass
+    return (mass, radii) if return_radii else mass
             
 # --- LLM-GENERATED — UNVERIFIED (tier: simulation) -----------------------------------
 # get_semimajor / stellar_axis_scale / gap_indices below were rewritten 2026-08-28 to fix

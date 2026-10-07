@@ -27,7 +27,7 @@ def log_state_vectors(sim, states, t_step):
 
 
 def _bounds_halt(o, planet):
-    if (o.a < 0) or (o.a > 5):
+    if (o.a < 0) or (o.a > 10):
         return f"code=a_out_of_bounds;planet={planet};a={o.a}\t"
     if (o.e < 0) or (o.e > 1):
         return f"code=e_out_of_bounds;planet={planet};e={o.e}\t"

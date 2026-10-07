@@ -3,7 +3,7 @@
 # Constants for the geminids model
 
 GRAVITATIONAL_CONSTANT = 6.67430e-11 #m^3/kg/s^2
-G_AU_YR_MSUN = 39.42 #au^3/yr^2/Msun
+G_AU_YR_MSUN = 39.476926421373  # au^3/yr^2/Msun; rebound's G for units (yr, AU, Msun)
 RADIUS_EARTH = 6.371e6 #m
 RADIUS_SUN = 6.957e8 #m
 MASS_SUN = 1.98847e30 #kg

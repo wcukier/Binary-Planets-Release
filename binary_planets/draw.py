@@ -36,6 +36,7 @@ from binary_planets.sim import (get_hill_radius, known_planets_cross,
                                 orbits_cross)
 from binary_planets.forecaster import mr_forecast as mr
 from binary_planets.utils import (
+    draw_rv,
     gap_indices,
     get_eccen,
     get_inc,
@@ -115,7 +116,7 @@ def _draw_once(system, mode, *, dt, t_end, integrator, name, n_log):
     i_in, i_out = gap_indices(system)
     gap_lo, gap_hi = semi_majors[i_in], semi_majors[i_out]
     incs = get_inc(system)
-    masses = get_mass(system)
+    masses, mass_radii = get_mass(system, return_radii=True)
 
     for j in range(n_secondary):
         cfg[f"secondary_{j}"] = {}
@@ -207,7 +208,7 @@ def _draw_once(system, mode, *, dt, t_end, integrator, name, n_log):
         cfg["binary"]["m1"] = 1e-20
         cfg["binary"]["m2"] = 1e-20
 
-    _draw_radii(cfg, system, mode)
+    _draw_radii(cfg, system, mode, mass_radii)
     cfg["dt"] = dt
     cfg["integrator"] = integrator
 
@@ -222,16 +223,21 @@ def _forecast_radius(m_earth):
     return float(mr.Mpost2R([max(m_earth, FORECAST_MIN_MASS)], "Earth", classify="No")[0])
 
 
-def _draw_radii(cfg, system, mode):
+def _draw_radii(cfg, system, mode, mass_radii):
     """Radii in Earth radii (planets) and solar radii (star).
 
-    Known planets take the catalogue central radius; injected bodies are forecast from
-    their drawn mass.  The catalogue has no stellar radius, so the star uses the
-    main-sequence R = M^0.8.  Drawn last so the other parameters' draws are unchanged.
+    Known planets keep the radius their mass was forecast from, if any (``mass_radii``,
+    NaN otherwise), and otherwise draw uniformly between the catalogue bounds like the
+    other parameters.  Injected bodies are forecast from their drawn mass.  The
+    catalogue has no stellar radius, so the star uses the main-sequence R = M^0.8.
+    Drawn last so the other parameters' draws are unchanged.
     """
     n_known = len(system["a"])
     for j in range(n_known):
-        cfg[f"secondary_{j}"]["radius"] = float(system["r"][j])
+        r = mass_radii[j]
+        if np.isnan(r):
+            r = draw_rv(system["r"][j], system["r_lower"][j], system["r_upper"][j])
+        cfg[f"secondary_{j}"]["radius"] = float(r)
     if mode == 1:
         j = n_known
         cfg[f"secondary_{j}"]["radius"] = _forecast_radius(cfg[f"secondary_{j}"]["m"])
