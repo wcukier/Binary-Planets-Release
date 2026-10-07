@@ -79,6 +79,11 @@ def parse_args(argv=None):
                          "handoff record to --result-npz and exit 0")
     ap.add_argument("--resume-from", default=None,
                     help="handoff record (a result .npz with 'handoff') to continue")
+    ap.add_argument("--t-snapshot", type=float, default=None,
+                    help="extended run: log the production schedule to this time, save a "
+                         "snapshot there, then continue to --t-end")
+    ap.add_argument("--n-log-ext", type=int, default=9000,
+                    help="extended run: log steps from --t-snapshot to --t-end")
     ap.add_argument("--result-npz", default="result.npz",
                     help="collected output; '' to write only the legacy file tree")
     return ap.parse_args(argv)
@@ -112,6 +117,12 @@ def write_result(path, base, config, plan_sha, seed, mode, system, run_index):
         f = b / f"{name}.json"
         if f.exists():
             payload[name] = f.read_text()
+    snap = b / "snapshot.json"
+    if snap.exists():
+        payload["snapshot_summary"] = snap.read_text()
+    final = b / "final.sim.bin"
+    if final.exists():
+        payload["final_sim"] = np.frombuffer(final.read_bytes(), dtype=np.uint8)
     notes = b / "run_notes.out"
     if notes.exists():
         payload["run_notes"] = notes.read_text()
@@ -141,6 +152,8 @@ def main(argv=None):
     entry = entry_by_name(plan, mode, args.system)
     t_end = args.t_end if args.t_end is not None else float(plan["t_end"])
     n_log = int(plan.get("n_log", 10000))
+    if args.t_snapshot is not None:
+        n_log += args.n_log_ext
 
     systems = np.load(DATA_DIR / "compact_systems_run_composite.npy", allow_pickle=True)
     system = systems[entry["system_index"]]
@@ -173,6 +186,9 @@ def main(argv=None):
     while status == REJECTED and attempt < args.max_attempts:
         cfg = draw_config(system, mode, dt=entry["dt"], t_end=t_end,
                           integrator=plan["integrator"], name=name, n_log=n_log)
+        if args.t_snapshot is not None:
+            cfg["t_snapshot"] = args.t_snapshot
+            cfg["n_log_ext"] = args.n_log_ext
         status = run_model_resumable(
             cfg, mode, outdir=args.outdir, ckpt_dir=ckpt_dir,
             should_checkpoint=should_checkpoint, attempt=attempt,

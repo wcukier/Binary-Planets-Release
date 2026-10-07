@@ -12,6 +12,8 @@ import json
 import time
 import os
 import datetime
+import pathlib
+import base64
 
 
 
@@ -310,6 +312,21 @@ REJECTED = 1    # draw halted inside the 5-yr startup window -- caller redraws
 CHECKPOINTED = 2  # checkpoint on disk; caller should exit with the checkpoint code
 
 
+# LLM-GENERATED — UNVERIFIED (tier: simulation): extended schedule with a mid-run snapshot.
+def log_schedule(config):
+    """(main-loop log times, index of the snapshot step) for extended runs, else (None, None).
+
+    An extended run logs the production schedule up to t_snapshot, then n_log_ext more
+    steps to t_end, so its first t_snapshot years reproduce the production run.
+    """
+    if "t_snapshot" not in config:
+        return None, None
+    n_prod = int(config["n_log"]) - int(config["n_log_ext"])
+    first = np.linspace(0, config["t_snapshot"], n_prod)[1:]
+    rest = np.linspace(config["t_snapshot"], config["t_end"], int(config["n_log_ext"]) + 1)[1:]
+    return np.concatenate([first, rest]), len(first) - 1
+
+
 def run_model_resumable(config, mode, outdir=".", *, ckpt_dir=None,
                         should_checkpoint=None, attempt=0, seed=0, git_hash=None,
                         cpu_budget_s=None):
@@ -335,6 +352,7 @@ def run_model_resumable(config, mode, outdir=".", *, ckpt_dir=None,
     resume = None
     t_wall_accum = 0.0
     cpu_prev = 0.0
+    snapshot = None
 
     if ckpt.exists(ckpt_dir):
         try:
@@ -348,6 +366,7 @@ def run_model_resumable(config, mode, outdir=".", *, ckpt_dir=None,
             resume = (meta["phase"], meta["i_next"])
             t_wall_accum = meta["t_wall_accum"]
             cpu_prev = meta.get("cpu_accum", 0.0)
+            snapshot = meta.get("extra", {}).get("snapshot")
             attempt = meta["attempt"]
             seed = meta["seed"]
         except ckpt.CheckpointMismatch as exc:
@@ -366,16 +385,32 @@ def run_model_resumable(config, mode, outdir=".", *, ckpt_dir=None,
             run_notes.write("*************************************************\n\n")
             sim, log = build_sim(config, mode, run_notes)
 
-        with open(f"{base}/config.json", "w+") as cf:
-            json.dump(config, cf)
-
         E0 = sim.energy()
         Lx0, Ly0, Lz0 = sim.angular_momentum()
+
+    # Written on resume too: the caller's config is a fresh draw, not the run's.
+    with open(f"{base}/config.json", "w+") as cf:
+        json.dump(config, cf)
 
     def stop():
         if should_checkpoint is not None and should_checkpoint():
             return True
         return cpu_budget_s is not None and cpu_prev + time.process_time() >= cpu_budget_s
+
+    main_ts, i_snap = log_schedule(config)
+
+    def take_snapshot(i, t):
+        nonlocal snapshot
+        if i != i_snap:
+            return
+        snap = summarize(sim, "", t, t_wall_accum + (time.time() - t0), E0, (Lx0, Ly0, Lz0),
+                         mode=mode)
+        snap.update(n_rejected=attempt, seed=seed, cpu_s=cpu_prev + time.process_time())
+        path = pathlib.Path(ckpt_dir) / "snapshot.sim.bin"
+        sim.save_to_file(str(path), delete_file=True)
+        snap["sim_b64"] = base64.b64encode(path.read_bytes()).decode()
+        path.unlink()
+        snapshot = snap
 
     t0 = time.time()
     try:
@@ -383,13 +418,15 @@ def run_model_resumable(config, mode, outdir=".", *, ckpt_dir=None,
             sim, log, config["t_end"], mode,
             resume=resume, should_checkpoint=stop,
             a_com0=config["binary"]["a_com0"] if mode == 2 else None,
+            main_ts=main_ts, on_step=take_snapshot if i_snap is not None else None,
         )
     except CheckpointRequested as c:
         ckpt.save(ckpt_dir, sim, c.log, phase=c.phase, i_next=c.i_next,
                   config=config, mode=mode, energy0=E0, angmom0=(Lx0, Ly0, Lz0),
                   t_wall_accum=t_wall_accum + (time.time() - t0),
                   attempt=attempt, seed=seed, git_hash=git_hash,
-                  cpu_accum=cpu_prev + time.process_time())
+                  cpu_accum=cpu_prev + time.process_time(),
+                  extra={"snapshot": snapshot} if snapshot else None)
         return CHECKPOINTED
 
     if t_end < 5:
@@ -405,6 +442,10 @@ def run_model_resumable(config, mode, outdir=".", *, ckpt_dir=None,
     sum_data["cpu_s"] = cpu_prev + time.process_time()
     with open(f"{base}/summary.json", "w+") as cf:
         json.dump(sum_data, cf)
+    if snapshot:
+        with open(f"{base}/snapshot.json", "w+") as cf:
+            json.dump(snapshot, cf)
+    sim.save_to_file(f"{base}/final.sim.bin", delete_file=True)
 
     ckpt.clear(ckpt_dir)
     del sim, log

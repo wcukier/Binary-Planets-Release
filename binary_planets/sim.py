@@ -212,7 +212,7 @@ class CheckpointRequested(Exception):
 
 
 def simulate_resumable(sim, log, t_end, mode, *, resume=None, should_checkpoint=None,
-                       a_com0=None):
+                       a_com0=None, main_ts=None, on_step=None):
     """Integrate, optionally resuming mid-run and optionally stopping to checkpoint.
 
     Parameters
@@ -225,6 +225,10 @@ def simulate_resumable(sim, log, t_end, mode, *, resume=None, should_checkpoint=
         CheckpointRequested is raised.
     a_com0 : float or None
         Initial centre-of-mass semi-major axis of the injected pair; required for mode 2.
+    main_ts : array or None
+        Main-loop log times; default ``linspace(0, t_end, n_log)[1:]``.
+    on_step : callable or None
+        ``on_step(i, t)`` after each logged main step, before the checkpoint poll.
 
     Returns
     -------
@@ -244,7 +248,8 @@ def simulate_resumable(sim, log, t_end, mode, *, resume=None, should_checkpoint=
     log = list(log)
     n_log = get_log_len(log)
     startup_ts = np.linspace(0, STARTUP_T_END, STARTUP_STEPS)
-    main_ts = np.linspace(0, t_end, n_log)[1:]
+    if main_ts is None:
+        main_ts = np.linspace(0, t_end, n_log)[1:]
     # Main targets below STARTUP_T_END would integrate backwards (TRACE segfaults).
     if len(main_ts) and main_ts[0] < STARTUP_T_END:
         raise ValueError(f"log cadence t_end/(n_log-1) = {main_ts[0]:.3g} yr is below the "
@@ -283,6 +288,8 @@ def simulate_resumable(sim, log, t_end, mode, *, resume=None, should_checkpoint=
         if halt:
             print("Unstable system.  Stopping...", file=sys.stderr)
             return sim, log, halt, t, "main", i + 1
+        if on_step is not None:
+            on_step(i, t)
         if should_checkpoint is not None and should_checkpoint():
             raise CheckpointRequested("main", i + 1, t, log)
 

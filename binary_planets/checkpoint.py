@@ -55,7 +55,7 @@ def exists(outdir):
 
 
 def save(outdir, sim, log, *, phase, i_next, config, mode, energy0, angmom0,
-         t_wall_accum, attempt, seed, git_hash=None, cpu_accum=0.0):
+         t_wall_accum, attempt, seed, git_hash=None, cpu_accum=0.0, extra=None):
     """Write a checkpoint.  Commit marker (`checkpoint.json`) is written last."""
     sim_p, npz_p, json_p = _paths(outdir)
 
@@ -83,6 +83,7 @@ def save(outdir, sim, log, *, phase, i_next, config, mode, energy0, angmom0,
         "angmom0": [float(x) for x in angmom0],
         "t_wall_accum": float(t_wall_accum),
         "cpu_accum": float(cpu_accum),
+        "extra": extra or {},
         "attempt": int(attempt),
         "seed": int(seed),
         "rebound_version": rebound.__version__,
