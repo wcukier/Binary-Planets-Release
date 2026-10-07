@@ -33,6 +33,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 from binary_planets.checkpoint import pack as ckpt_pack           # noqa: E402
 from binary_planets.checkpoint import unpack as ckpt_unpack       # noqa: E402
+from binary_planets.checkpoint import exists as ckpt_exists       # noqa: E402
 from binary_planets.draw import draw_config                      # noqa: E402
 from binary_planets.plan import (                                # noqa: E402
     MODE_CODES, entry_by_name, load_plan, run_seed, safe_name,
@@ -166,7 +167,9 @@ def main(argv=None):
 
     seed = run_seed(plan, mode, entry["system_index"], args.run)
 
-    if args.resume_from:
+    # After a self-checkpoint restart the sandbox holds a newer checkpoint than the
+    # handoff; unpacking again would roll the run back.
+    if args.resume_from and not ckpt_exists(ckpt_dir):
         rec = np.load(args.resume_from, allow_pickle=True)
         if "handoff" not in rec.files or int(rec["seed"]) != seed:
             raise SystemExit(f"{args.resume_from} is not a handoff record for {name}")
