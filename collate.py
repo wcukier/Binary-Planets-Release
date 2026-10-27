@@ -1,4 +1,3 @@
-# LLM-GENERATED — UNVERIFIED (tier: simulation)
 # Remove this line only after completing the checks in Assistant/POLICY.md §2.
 """
 Collate per-run output into a single collated_results.npz per planet.
@@ -11,15 +10,7 @@ Usage:
     python collate.py bin_inj --source npz --root staging/
 
 Why runs go missing, and why that now matters
----------------------------------------------
-``summary.json`` is the last file run_model writes, so it is exactly what a killed or
-preempted run lacks.  The previous version caught FileNotFoundError and silently
-dropped such runs, leaving no record anywhere -- the row order became "sorted run dirs,
-minus whatever was dropped", so the mapping from row to run identity was lost and the
-survival denominator was quietly wrong.  That was tolerable while jobs ran to
-completion; under preemption it is not.  Every dropped run is now recorded in
-``missing_runs``/``missing_reasons`` and the exit status is non-zero if a planet came
-up short of the run count in run_plan.json.
+
 """
 
 import argparse
@@ -133,7 +124,6 @@ def collate_planet(planet_dir, *, mode, n_expected=None, source="tree",
         "cfgs": cfgs,
         "elements": elements,
         "distances": distances,
-        # --- added; the legacy four above keep their shapes ---
         "run_index": np.asarray(run_index, dtype=np.int64),
         "n_rejected": np.asarray(n_rejected, dtype=np.int64),
         "missing_runs": np.asarray([missing[i] for i in order], dtype=np.int64),

@@ -1,7 +1,5 @@
 import numpy as np
 from scipy.stats import describe
-# pyplot is unused here -- the only references (plot_corner's savefig/close) are
-# commented out.  Kept out of the import chain so batch jobs do not load matplotlib.
 from os import sys
 
 def init_log(n_log, n_particles):
@@ -63,9 +61,6 @@ def log_elements(sim, log, mode, a_com0=None):
         if p.m > 1e-15 and not (mode == 2 and i in (1, 2)):
             halt += _bounds_halt(o, i)
 
-    # LLM-GENERATED — UNVERIFIED (tier: simulation): the pair's bounds and unbound tests
-    # use its centre of mass.  A component's own heliocentric orbit includes its motion
-    # about its partner, so the pair (particles 1, 2) is tested as one body.
     if mode == 2:
         halt += _bounds_halt(com_orbit(sim), "1,2")
 

@@ -17,9 +17,16 @@ sys.path.append(str(ROOT))
 
 import cmasher as cmr  # noqa: E402
 
+sys.path.append(str(HERE))
+from crossing_cap import e_max  # noqa: E402
+
 os.makedirs(HERE / "figs", exist_ok=True)
 
 run_name = sys.argv[1] if len(sys.argv) > 1 else "sin_inj"
+
+# Same overrides as binary_inj_corner.py.
+OUTPUT_ROOT = pathlib.Path(os.environ.get("BP_OUTPUT_ROOT", ROOT / "output"))
+FIG_SUFFIX = os.environ.get("BP_FIG_SUFFIX", "")
 
 def gen_arr(config, bin=True, n=12000, secondary=True, extra_keys = []):
     n_secondary = config["n_secondary"]
@@ -84,12 +91,54 @@ def add_to_array(arr, config, keys, i, stable, bin=True, n=12000, secondary=True
         j += 1
     
     return arr, keys
+
+
+def rescale(arr, keys, system_idx):
+    """Rescale a into the gap and inclination to degrees, in place."""
+    gap = np.log10(run_systems[system_idx]["gap"])
+    for k in ("0/a", "a_f"):
+        arr[:, keys==k] = (np.log10(arr[:, keys==k]) - gap[0]) / (gap[1] - gap[0])
+
+    # Degrees, to match the text and binary_inj_corner.py.
+    arr[:, keys=="0/inc"] = np.degrees(arr[:, keys=="0/inc"])
+
+
+def load_prior_sample(system, keys, system_idx):
+    """Weighted draws from the prior before the 5-yr rejection (plotting/prerejection_prior.py).
+
+    Returns ``(arr, weight)`` with the columns of ``keys`` (NaN where not stored), or
+    None if the system has not been sampled.  Weights sum to the grid's draw count.
+    """
+    path = OUTPUT_ROOT / "prerejection" / dir / f"{system}.npz"
+    if not path.exists():
+        return None
+    smp = np.load(path)
+    out = np.full((len(smp["weight"]), len(keys)), np.nan)
+    for k in smp.files:
+        if k in keys:
+            out[:, keys==k] = smp[k][:, None]
+    rescale(out, keys, system_idx)
+    return out, smp["weight"]
+
+
+def _uniform(lo, hi):
+    return lambda b: np.diff(np.clip(b, lo, hi)) / (hi - lo)
+
+
+def _isotropic_deg(b):
+    return -np.diff(np.cos(np.radians(np.clip(b, 0, 180)))) / 2
+
+
+# Fraction of the pre-rejection prior per bin, for the parameters drawn before the
+# crossing-orbit loop (draw.py at the grid revision).  The rest come from the sample.
+ANALYTIC = {"0/m": _uniform(0.38, 72), "0/inc": _isotropic_deg, "0/e_rel": _uniform(0, 1)}
+
     
 run_systems = np.load(ROOT / "data" / "compact_systems_run_composite.npy", allow_pickle=True)
 all_names = [sys["name"] for sys in run_systems if sys["name"]]
 
-bin_planets = {d.name for d in (ROOT / "output" / "bin_inj").iterdir() if d.is_dir() and (d / "collated_results.npz").exists()}
-sin_planets = {d.name for d in (ROOT / "output" / run_name).iterdir() if d.is_dir() and (d / "collated_results.npz").exists()}
+bin_planets = {d.name for d in (OUTPUT_ROOT / "bin_inj").iterdir() if d.is_dir() and (d / "collated_results.npz").exists()}
+sin_planets = {d.name for d in (OUTPUT_ROOT / run_name).iterdir() if d.is_dir() and (d / "collated_results.npz").exists()}
 valid_planets = bin_planets & sin_planets
 names = [name for name in all_names if name in valid_planets]
 # names = ["Kepler-186"]
@@ -99,14 +148,15 @@ is_binary = False
 
 dir = run_name
 
-extra_keys = ["a_f", "max_change"]
+extra_keys = ["a_f", "max_change", "0/e_rel"]
 
 arr_t = None
 stable_t = None
+prior_samples = []
 stable_omega = []
 unstable_omega = []
 for system in tqdm(names):
-    cached_data =  np.load(ROOT / "output" / dir / system / "collated_results.npz", allow_pickle=True)
+    cached_data =  np.load(OUTPUT_ROOT / dir / system / "collated_results.npz", allow_pickle=True)
     cached_summaries = cached_data["summaries"]
     cached_cfgs = cached_data["cfgs"]
     cached_elements = cached_data["elements"]
@@ -141,7 +191,8 @@ for system in tqdm(names):
                                     bin=is_binary, 
                                     secondary="sin_inj",
                                     extra_keys=extra_keys,
-                                    extra_vars=[elements[-1, n_inj, 0], np.nanmax((a_i-a_f)/a_i)]
+                                    extra_vars=[elements[-1, n_inj, 0], np.nanmax((a_i-a_f)/a_i),
+                                                cfg[f"secondary_{n_inj}"]["e"] / e_max(cfg, 1)]
                                 )
 
         if stable[i]:
@@ -156,11 +207,8 @@ for system in tqdm(names):
     keys = np.array(keys)
     arr[:, 1:] += np.random.random((arr.shape[0], arr.shape[1]-1)) * 1e-20
 
-    arr[:, keys=="0/a"] = ((np.log10(arr[:, keys=="0/a"]) - np.log10(run_systems[system_idx]["gap"][0]))
-                                / (np.log10(run_systems[system_idx]["gap"][1]) - np.log10(run_systems[system_idx]["gap"][0])))
-
-    arr[:, keys=="a_f"] = ((np.log10(arr[:, keys=="a_f"]) - np.log10(run_systems[system_idx]["gap"][0]))
-                            / (np.log10(run_systems[system_idx]["gap"][1]) - np.log10(run_systems[system_idx]["gap"][0])))
+    rescale(arr, keys, system_idx)
+    prior_samples.append(load_prior_sample(system, keys, system_idx))
 
 
     if not np.any(arr_t):
@@ -171,7 +219,14 @@ for system in tqdm(names):
         stable_t = np.hstack([stable_t, stable])
 
 
-param_labels = [r"Mass [M$_\oplus$]", "a (Rescaled)", "e", "Inclination [rad]"]
+if any(r is None for r in prior_samples):
+    print("prerejection sample missing for some systems; omitting the pre-rejection prior")
+    arr_pre_t = None
+else:
+    arr_pre_t = np.vstack([r[0] for r in prior_samples])
+    w_pre_t = np.concatenate([r[1] for r in prior_samples])
+
+param_labels = [r"Mass [M$_\oplus$]", "a (Rescaled)", r"$e/e_{\rm max}$", "Inclination [deg]"]
 
 mpl.rc("font", size=10)
 # plt.style.use("dark_background")
@@ -183,6 +238,7 @@ gs = axs[0, 0].get_gridspec()
 n = 50
 
 levels = np.logspace(-2, 0.5, 8)
+density_levels = np.linspace(0, 1, 9)
 
 c1 = mpl.colormaps["cmr.sepia"](0.95)
 c2 = mpl.colormaps["cmr.lavender"](0.95)
@@ -191,7 +247,7 @@ c1_dark = mpl.colormaps["cmr.sepia"](0.6)
 c2_dark = mpl.colormaps["cmr.lavender"](0.6)
 
 pairs = [(i, j) for i in range(n_vars+1) for j in range(i+1, n_vars+1)]
-good_keys = ['0/m', '0/a', '0/e', '0/inc', "a_f", "max_change"]
+good_keys = ['0/m', '0/a', '0/e_rel', '0/inc', "a_f", "max_change"]
 
 
 
@@ -225,13 +281,14 @@ for i, j in tqdm(pairs):
 
         xy = np.vstack([xx.ravel(), yy.ravel()])
         density = kde(xy).reshape(n, n)
+        density /= density.max()
         # density_s = kde_s(xy).reshape(n, n)
         # -------------------
 
-        ax.contourf(xx, yy, density, cmap="cmr.sepia", alpha=0.5)
+        cs = ax.contourf(xx, yy, density, levels=density_levels, cmap="cmr.sepia", alpha=0.5)
         # ax.contour(xx, yy, density_s, linewidths=2, cmap="cmr.lavender", levels=3)
 
-        ax.scatter(x_s, y_s, s=0.25, c="k", alpha=0.3)
+        ax.scatter(x_s, y_s, s=0.84, c="k", alpha=0.3, linewidths=0)
 #         ax.set_xticks([])
 #         ax.set_yticks([])
         ax.sharex(axs[n_vars, i])
@@ -249,22 +306,24 @@ for i in range(n_vars+1):
         ax = axs[i,j]
         ax.axis("off")
         if [i,j] == [0,n_vars]:
-            ax.hist(np.ones(5), color=c1, label="Prior")
-            ax.hist(np.ones(5), color=c2, label="Surviving")
-            ax.set_xlim(5,10)
-            ax.legend(frameon=False)
- 
-        if [i,j] == [1,n_vars]:
-            p1 = ax.hexbin(np.ones(5), np.ones(5), np.ones(5), cmap='cmr.sepia')
-            p2 = ax.hexbin(np.ones(5), np.ones(5), np.ones(5), cmap='cmr.rainforest')
-            cmr.set_cmap_legend_entry(p1, 'Prior')
-            cmr.set_cmap_legend_entry(p2, 'Surviving')
-            
-            ax.scatter([0], [0], s=0.25, c="k", alpha=0.3, label = "Surviving Run")
-
-            ax.set_xlim(5,10)
-#             ax.legend(frameon=False)
+            handles = [mpl.patches.Patch(facecolor=c1, edgecolor=c1_dark,
+                                         label="All Runs (Prior)"),
+                       mpl.patches.Patch(facecolor=c2, edgecolor=c2_dark, lw=2,
+                                         label="Surviving Runs")]
+            if arr_pre_t is not None:
+                handles.append(mpl.lines.Line2D([], [], color=c1_dark, ls=":", lw=1.5,
+                                                label="Prior before 5 yr rejection"))
+            handles.append(mpl.lines.Line2D([], [], ls="", marker="o", ms=4.5, mfc="k", mec="none",
+                                            alpha=0.6, label="Surviving Run"))
+            leg = ax.legend(handles=handles, loc="upper right", frameon=False, fontsize=9)
+            fig.canvas.draw()
+            bb = leg.get_window_extent().transformed(ax.transAxes.inverted())
+            cb_width = 1.0
+            cax = ax.inset_axes([(bb.x0 + bb.x1 - cb_width) / 2, 0.3, cb_width, 0.08])
+            cb = fig.colorbar(cs, cax=cax, orientation="horizontal", ticks=[0, 0.5, 1])
+            cb.set_label("Prior Density", fontsize=9)
         
+y_top = 0
 for i in range(n_vars+1):
     ax = axs[i,i]
     key1 = good_keys[i]
@@ -276,11 +335,27 @@ for i in range(n_vars+1):
     ax.yaxis.set_label_position("right")
     ax.set_ylabel("Count")
 
-    ax.hist(x, bins=n_bins, color=c1)
-    ax.hist(x, bins=n_bins, color=c1_dark, histtype="step")
+    if arr_pre_t is None:
+        bins = n_bins
+    else:
+        x_pre = arr_pre_t[:, keys==key1].ravel()
+        x_pre = x_pre[np.isfinite(x_pre)]
+        bins = np.histogram_bin_edges(np.concatenate([x.ravel(), x_pre]), n_bins)
+
+    n_prior = ax.hist(x, bins=bins, color=c1)[0]
+    y_top = max(y_top, n_prior.max())
+    ax.hist(x, bins=bins, color=c1_dark, histtype="step")
 
     ax.hist(x_s, bins=n_bins, color=c2)
     ax.hist(x_s, bins=n_bins, color=c2_dark, histtype="step", lw=2)
+
+    if arr_pre_t is not None:
+        if key1 in ANALYTIC:
+            counts = w_pre_t.sum() * ANALYTIC[key1](bins)
+        else:
+            counts = np.histogram(x_pre, bins, weights=w_pre_t)[0]
+        ax.stairs(counts, bins, color=c1_dark, ls=":", lw=1.5)
+        y_top = max(y_top, counts.max())
 
     ax.set_yscale("log")
 
@@ -289,10 +364,13 @@ for i in range(n_vars+1):
     if (i != n_vars): ax.tick_params('x', labelbottom=False)
     else: ax.set_xlabel(param_labels[i])
 
+# The diagonals share y with axs[0, 0]; size it to the tallest histogram.
+axs[0, 0].set_ylim(top=2 * y_top)
+
 for i in range(n_vars+1):
     axs[n_vars, i].tick_params(axis='x', rotation=45)
     axs[i, i].tick_params(axis='x', rotation=45)
 
 
 
-plt.savefig(HERE / "figs" / "figure5_corner_single.png", dpi=500)
+plt.savefig(HERE / "figs" / f"figure5_corner_single{FIG_SUFFIX}.png", dpi=500)

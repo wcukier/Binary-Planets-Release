@@ -21,9 +21,7 @@ global t_end
 global integrator
 
 def load_plan_entry(mode, array_index):
-    """Resolve ${LSB_JOBINDEX} through data/run_plan.json.
-
-    The plan orders systems by descending estimated cost so the longest job starts
+    """The plan orders systems by descending estimated cost so the longest job starts
     first, and carries a per-system timestep.  Returns (entry, plan).
 
     Thin wrapper over binary_planets.plan so this driver and run_one.py resolve run
@@ -54,10 +52,6 @@ seq = np.random.SeedSequence().generate_state(n_runs)
 # def one_run(run_num, config, mode, pl_num, debug=0):
 def one_run(run_num, cfg):
     """Draw a config and run it.  Returns 1 if the draw was rejected in the 5-yr window.
-
-    The prior-drawing body now lives in binary_planets.draw.draw_config so that this
-    LSF driver and run_one.py (OSG) share one implementation.  mode/pl_num/dt/t_end/
-    integrator still arrive as module globals from the Pool initializer.
     """
     sys_num = pl_num
     batch_num = int(int(run_num) / n_sys) + 1
@@ -112,8 +106,7 @@ def run_dispatcher(run_num):
 
         
     # Bounded, matching run_one.py's --max-attempts.  ~70% of draws are rejected in the
-    # 5-yr startup window so this normally runs 1-3 times, but an unbounded loop here
-    # means a pathological system pins a worker forever with no error surfaced.
+    # 5-yr startup window so this normally runs 1-3 times
     for attempt in range(MAX_DRAW_ATTEMPTS):
         early_stop = one_run(run_num, cfg)
         if not early_stop:
@@ -165,19 +158,11 @@ if __name__ == "__main__":
     # for i in range(1000):
     #     one_run(i)
 
-    # Size the pool from the LSF allocation, not from os.cpu_count().  Pool() with no
-    # argument sees the *host's* full core count -- on a 64-core exec node holding 23
-    # allocated slots it spawned ~46 workers, oversubscribing the allocation.  Requires
-    # span[hosts=1] in the submit script, or the slots on other hosts are unreachable
-    # anyway (multiprocessing cannot cross hosts).
+
     n_proc = int(os.environ.get("LSB_DJOB_NUMPROC", 0)) or os.cpu_count()
 
     with Pool(processes=n_proc,
               initializer=_init_worker,
               initargs=(cfg_name, mode, pl_num, dt, t_end, integrator)) as p:
-        # chunksize=1.  Run cost spans three orders of magnitude -- a run that halts
-        # early takes ~360 s at median, one that survives ~10 h -- so the default
-        # chunksize (7 at n_runs=1000 on 40 workers) hands a worker seven runs at once
-        # and the six behind a slow one wait while other workers sit idle.
         for _ in p.imap_unordered(run_dispatcher, range(0, n_runs), chunksize=1):
             pass

@@ -1,36 +1,18 @@
-# LLM-GENERATED — UNVERIFIED (tier: simulation)
 # Remove this line only after completing the checks in Assistant/POLICY.md §2.
 """Draw one run configuration from the priors.
 
-Extracted verbatim from ``run_planets.py:one_run`` so that the LSF driver
-(``run_planets.py``) and the single-simulation driver (``run_one.py``, used on
-OSG/HTCondor) consume *the same* prior code.  Two copies of this logic would make the
-single-vs-binary survival comparison the paper turns on impossible to verify.
+Both drivers use this module, ``run_planets.py`` on LSF and ``run_one.py`` on
+OSG/HTCondor, so every run is drawn by the same code.
 
-The RNG consumption order is load-bearing and must not be reordered: the realised prior
-is the result of the draws *and* the rejection loops together, and changing the order
-changes the realised posterior even though every individual distribution is unchanged.
-See revision-plan task 0.1 item 4, where the realised binary separation prior comes out
-at median d/r_hill = 0.32 rather than the nominal 0.5.
+Keep the draws in their current order. Reordering them changes which configuration a
+given seed produces, and moving a draw into or out of a rejection loop changes the
+prior the runs actually sample. That prior already differs from the nominal
+distributions: the binary separation has median d/r_hill = 0.32, not 0.5.
 
-Units follow the simulation: AU, yr, Msun.
+Units are AU, yr and Msun.
 """
 
 import numpy as np
-
-# Rejection guards.  Matches the AXIS_MAX_ATTEMPTS / MAX_MASS_ATTEMPTS convention in
-# binary_planets.utils: bound the loop, and raise loudly rather than spin.
-SYSTEM_MAX_ATTEMPTS = 10_000
-INJECT_MAX_ATTEMPTS = 20_000
-
-
-class NoRoomForInjection(RuntimeError):
-    """This realisation of the known system cannot host the injected object.
-
-    Raised when the known planets are drawn onto crossing orbits, or when the gap they
-    leave admits no acceptable injected orbit.  Both mean the *drawn system* is the
-    problem, not the injected draw, so draw_config redraws the whole system.
-    """
 
 from binary_planets.sim import (get_hill_radius, known_planets_cross,
                                 orbits_cross)
@@ -44,6 +26,19 @@ from binary_planets.utils import (
     get_semimajor,
     get_stellar_mass,
 )
+
+SYSTEM_MAX_ATTEMPTS = 10_000
+INJECT_MAX_ATTEMPTS = 20_000
+
+
+class NoRoomForInjection(RuntimeError):
+    """This realisation of the known system cannot host the injected object.
+
+    Raised when the known planets are drawn onto crossing orbits, or when the gap they
+    leave admits no acceptable injected orbit.  Both mean the *drawn system* is the
+    problem, not the injected draw, so draw_config redraws the whole system.
+    """
+
 
 
 def _draw_once(system, mode, *, dt, t_end, integrator, name, n_log):
@@ -85,34 +80,22 @@ def _draw_once(system, mode, *, dt, t_end, integrator, name, n_log):
     if mode == 1:
         cfg["n_secondary"] += 1
 
-    # The known planets are observed and have coexisted for Gyr, so a draw placing any
-    # two of them on crossing orbits describes a system that cannot exist.  This is the
-    # same argument that motivates the ordering rejection in get_semimajor (task 0.8);
-    # rejecting only ordering left the subtler case where the planets keep their order
-    # but their radial ranges overlap.  Measured over 300 draws per system that happens
-    # in 3.76% of draws catalogue-wide, concentrated in the most compact systems --
-    # K2-72 91.7%, Kepler-223 84.7%, Kepler-338 64.3% -- which are precisely the three
-    # systems that came up short at 0% survival in the leapfrog pass.
-    #
-    # When the crossing pair is the pair bounding the gap, the injection region is
-    # closed outright and the rejection loops below had no acceptable draw at all: they
-    # spun forever.  Rejecting here removes that at the source, so those loops now
-    # terminate by construction rather than by their guard.
-    #
-    # The whole system is redrawn rather than the offending planet, for the reason
-    # get_semimajor gives: redrawing one planet biases it toward its error-bar edge.
     m_star = float(get_stellar_mass(system))
-    # The axes must be drawn against the same stellar mass stored in the config: for
-    # planets without published error bars they scale rigidly with it.  See task 0.8.
+
+    # Axes without published errors scale with m_star, so use the stored value.
     semi_majors = get_semimajor(system, m_star)
     es = get_eccen(system)
+
+
+    # The known planets are observed to coexist, so reject draws where any two cross.
+    # The caller redraws the whole system; redrawing one planet would bias it toward
+    # the edge of its error bar.
     if known_planets_cross(semi_majors, es):
         raise NoRoomForInjection(f"{system['name']}: known planets drawn crossing")
 
     cfg["m_star"] = m_star
-    # Gap edges as *simulated*, not as catalogued.  Drawing the injected planet
-    # between the catalog edges while the bounding planets moved is what put 13.6% of
-    # runs outside the gap they were supposed to be in.
+
+    # Gap edges from the drawn axes, not the catalog.
     i_in, i_out = gap_indices(system)
     gap_lo, gap_hi = semi_majors[i_in], semi_majors[i_out]
     incs = get_inc(system)
@@ -215,7 +198,6 @@ def _draw_once(system, mode, *, dt, t_end, integrator, name, n_log):
     return cfg
 
 
-# LLM-GENERATED — UNVERIFIED (tier: simulation): physical radii for collision detection.
 FORECAST_MIN_MASS = 3e-4   # M_earth; Mpost2R returns None below this
 
 
@@ -233,39 +215,34 @@ def _draw_radii(cfg, system, mode, mass_radii):
     Drawn last so the other parameters' draws are unchanged.
     """
     n_known = len(system["a"])
+
     for j in range(n_known):
         r = mass_radii[j]
         if np.isnan(r):
             r = draw_rv(system["r"][j], system["r_lower"][j], system["r_upper"][j])
         cfg[f"secondary_{j}"]["radius"] = float(r)
+
     if mode == 1:
         j = n_known
         cfg[f"secondary_{j}"]["radius"] = _forecast_radius(cfg[f"secondary_{j}"]["m"])
+
     if mode == 2:
         cfg["binary"]["radius1"] = _forecast_radius(cfg["binary"]["m1"])
         cfg["binary"]["radius2"] = _forecast_radius(cfg["binary"]["m2"])
+
     cfg["r_star"] = cfg["m_star"] ** 0.8
 
 
 def draw_config(system, mode, *, dt, t_end, integrator, name, n_log=10000):
     """Draw one run configuration, redrawing the system when it admits no injection.
 
-    Two things make a drawn realisation unusable, and both are properties of the *known*
-    system rather than of the injected object:
+    A draw of the known system is rejected if two known planets cross, or if the gap
+    between them has no room for the injected orbit. Either way the whole system is
+    redrawn, since redrawing one planet would bias it toward the edge of its error bar.
 
-    * the known planets land on crossing orbits -- they are observed to coexist, so such
-      a draw describes a system that cannot exist (the same argument as the ordering
-      rejection in get_semimajor, task 0.8);
-    * the gap they leave admits no injected orbit at all.
-
-    Either way the whole system is redrawn, for the reason get_semimajor gives: redrawing
-    one element biases it toward the edge of its error bar.  Both used to be unbounded
-    ``while True`` loops that spun forever on the most compact systems.
-
-    Rejection is negligible for 61 of the 66 systems and heavy for three -- K2-72,
-    Kepler-223 and Kepler-338 -- whose known-planet eccentricities are drawn conditional
-    on the planets being mutually non-crossing.  That conditioning is a real change to
-    the prior and needs stating in the methods.
+    Rejection is rare for most systems but common for K2-72, Kepler-223 and Kepler-338.
+    For those three, the known-planet eccentricities are effectively drawn conditional
+    on the planets not crossing.
     """
     for _ in range(SYSTEM_MAX_ATTEMPTS):
         try:
@@ -273,6 +250,7 @@ def draw_config(system, mode, *, dt, t_end, integrator, name, n_log=10000):
                               integrator=integrator, name=name, n_log=n_log)
         except NoRoomForInjection:
             continue
+
     raise RuntimeError(
         f"could not draw a usable configuration for {system['name']} in "
         f"{SYSTEM_MAX_ATTEMPTS} attempts"

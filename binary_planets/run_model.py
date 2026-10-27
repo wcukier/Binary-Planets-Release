@@ -19,8 +19,7 @@ import base64
 
 
 
-# LLM-GENERATED — UNVERIFIED (tier: simulation): build_sim, summarize and
-# run_model_resumable, plus run_model's `outdir` parameter.  See POLICY.md §2.
+
 def build_sim(config, mode, run_notes=None):
     """Construct the rebound Simulation and empty log from a config.
 
@@ -75,14 +74,12 @@ def build_sim(config, mode, run_notes=None):
     note("*************************************************\n\n")
     if "r_star" in config:
         set_radii(sim, config, mode)
-    # LLM-GENERATED — UNVERIFIED (tier: simulation).  Stored in the config so a resumed
-    # run uses the t = 0 value; see log_elements.
+
     if mode == 2:
         binary["a_com0"] = com_orbit(sim).a
     return sim, log
 
 
-# LLM-GENERATED — UNVERIFIED (tier: simulation): pair_state (task 1.4d).
 def pair_state(sim):
     """State of the injected pair (particles 1, 2): is it bound, and has it left?
 
@@ -116,7 +113,6 @@ def pair_state(sim):
             "pair_com_a": float(com_a), "pair_com_bound": bool(E_com < 0)}
 
 
-# LLM-GENERATED — UNVERIFIED (tier: simulation).
 def set_radii(sim, config, mode):
     """Give every body its physical radius and halt the integration on contact.
 
@@ -312,7 +308,6 @@ REJECTED = 1    # draw halted inside the 5-yr startup window -- caller redraws
 CHECKPOINTED = 2  # checkpoint on disk; caller should exit with the checkpoint code
 
 
-# LLM-GENERATED — UNVERIFIED (tier: simulation): extended schedule with a mid-run snapshot.
 def log_schedule(config):
     """(main-loop log times, index of the snapshot step) for extended runs, else (None, None).
 

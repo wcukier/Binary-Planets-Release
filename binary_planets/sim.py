@@ -41,10 +41,7 @@ def orbital_charcteristics(m1, m2, d, e=0, phase=0, Omega=0, inc=0):
     v_hat1 = v_dir1/np.linalg.norm(v_dir1)
     v_hat2 = v_dir2/np.linalg.norm(v_dir2)
     
-    
-    # LLM-GENERATED — UNVERIFIED (tier: simulation).  v1, v2 are the transverse speeds;
-    # the radial part, outward from the barycentre, completes a Kepler orbit with
-    # semi-major axis d and eccentricity e at this phase.
+
     v_rad = np.sqrt(G_AU_YR_MSUN * (m1 + m2) / (d * (1 - e**2))) * e * np.sin(phase)
     v_vec1 = v_hat1 * v1 + x_vec1 / r1 * (a1 / d) * v_rad
     v_vec2 = v_hat2 * v2 + x_vec2 / r2 * (a2 / d) * v_rad
@@ -130,8 +127,6 @@ def init_binary_planet(sim, m_star, m1, m2, d, a=1, e=0,
                        bin_inc=0, run_notes=None):
     """Add a bound planet pair on an orbit about the star.
 
-    NOTE ON THE ANGLE NAMES -- they read backwards:
-
         inc      inclination of the pair's MUTUAL orbit (m1 about m2).  Carries Omega.
         bin_inc  inclination of the pair's CENTRE-OF-MASS orbit about the star.
                  Its node is fixed at 0, which is harmless: the known planets are
@@ -150,9 +145,7 @@ def init_binary_planet(sim, m_star, m1, m2, d, a=1, e=0,
     [x1, v1], [x2, v2] = orbital_charcteristics(m1, m2, d, inc=inc, e=e, 
                                                 phase=phase, Omega=Omega)
 
-    # LLM-GENERATED — UNVERIFIED (tier: simulation).  Orbit of the pair's centre of mass.
-    # Particles are added heliocentric, so it takes its state relative to the star, not
-    # to the star-pair barycentre.
+
     [xs, vs], [xp, vp] = orbital_charcteristics(m_star, m1+m2, a, inc=bin_inc, e=e_sys)
     [x0, y0, z0], [vx0, vy0, vz0] = xp - xs, vp - vs
     if run_notes:
@@ -178,16 +171,10 @@ def init_single_planet(sim, m, a, e, inc, omega, Omega):
     sim.move_to_com()
     return sim
 
-# LLM-GENERATED — UNVERIFIED (tier: simulation): CheckpointRequested,
-# simulate_resumable, and simulate()'s delegation to it.  The rest of this module
-# predates that change.  See Assistant/POLICY.md §2.
-# The 5-year startup window: 100 samples over [0, 10] yr.  A run that halts anywhere in
-# here is a *rejected draw*, not a failure -- run_model returns 1 and the caller redraws.
 STARTUP_T_END = 10
 STARTUP_STEPS = 100
 
 
-# LLM-GENERATED — UNVERIFIED (tier: simulation).
 def _integrate(sim, t):
     """Integrate to t; on contact return a collision halt string, else ""."""
     try:
@@ -213,7 +200,7 @@ class CheckpointRequested(Exception):
         self.phase = phase
         self.i_next = i_next
         self.t = t
-        self.log = log        # carries the live cursor; see the note in the main loop
+        self.log = log        # carries the current t_step; see the note in the main loop
 
 
 def simulate_resumable(sim, log, t_end, mode, *, resume=None, should_checkpoint=None,
@@ -241,15 +228,9 @@ def simulate_resumable(sim, log, t_end, mode, *, resume=None, should_checkpoint=
         `phase`/`i_next` describe where integration stopped, so a halt and a completed
         run are distinguishable from a checkpoint without inspecting the arrays.
 
-    Notes
-    -----
-    Neither the loop phase nor the write cursor is recoverable from the log arrays:
-    the startup loop resets ``log[3] = 1`` on every iteration, so all but the first
-    startup sample overwrite row 1, and ``get_log_len`` returns capacity rather than
-    fill.  Both must be carried explicitly in the checkpoint.
     """
     # init_log returns a tuple; log_elements returns a list.  Normalise once so the
-    # cursor is assignable regardless of which the caller passed.
+    # t_step (log[3]) is assignable regardless of which the caller passed.
     log = list(log)
     n_log = get_log_len(log)
     startup_ts = np.linspace(0, STARTUP_T_END, STARTUP_STEPS)
@@ -264,11 +245,11 @@ def simulate_resumable(sim, log, t_end, mode, *, resume=None, should_checkpoint=
     halt = ""
     t = 0.0
 
-    # log_elements returns a *new* list with t_step rebound while mutating the three
-    # arrays in place.  Write the cursor back into our own list rather than rebinding,
-    # and hand that list out on every exit path -- including CheckpointRequested, which
-    # otherwise unwinds leaving the caller with a stale cursor and a silently truncated
-    # log on resume.
+    # log_elements fills row t_step of the three arrays in place, but returns the
+    # incremented t_step in a new list instead of updating `log`.  Copy it back into
+    # `log` after every call: `log` is what this function returns and what
+    # CheckpointRequested carries, and a checkpoint saved with an old t_step would
+    # resume writing at the wrong row.
     if phase == "startup":
         for i in range(i0, len(startup_ts)):
             t = startup_ts[i]

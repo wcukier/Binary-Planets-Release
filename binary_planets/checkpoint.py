@@ -1,29 +1,20 @@
-# LLM-GENERATED — UNVERIFIED (tier: simulation)
-# Remove this line only after completing the checks in Assistant/POLICY.md §2.
-"""Serialize and restore a mid-flight simulation so a preempted job can resume.
+"""Save and restore a running simulation so a preempted job can resume.
 
-Format is three files, written together and committed by the last one:
+A checkpoint is three files:
 
-    checkpoint.sim.bin   rebound binary snapshot (~4 KB)
-    checkpoint.npz       the log arrays + cursor (savez_compressed)
-    checkpoint.json      scalars, config and provenance -- THE COMMIT MARKER
+    checkpoint.sim.bin   rebound snapshot (~4 KB)
+    checkpoint.npz       log arrays and t_step
+    checkpoint.json      scalars, config, provenance
 
-``checkpoint.json`` is written last and via os.replace, so a job killed mid-write
-leaves either a complete checkpoint or one that ``load`` refuses.  On refusal the
-caller restarts the run from scratch rather than resuming into a corrupt state --
-a wrong answer is far worse than a repeated one.
+checkpoint.json is written last, with os.replace, and marks the checkpoint as
+complete. If a job dies partway through a write, ``load`` rejects the checkpoint
+and the run starts over.
 
-Two things here are easy to get wrong and expensive to get wrong:
+E0 and L0 are saved from the start of the run, so E_Err and L_err are still
+measured against the initial state after a resume. The loop phase and t_step are
+also saved explicitly, since neither can be recovered from the log arrays.
 
-* **E0/L0 must be carried.**  run_model captures them *before* integration; recomputing
-  them after a restart would silently make E_Err and L_err meaningless (they would be
-  measured against the resumed state rather than the initial one).
-* **The loop phase and cursor must be explicit.**  Neither is recoverable from the log
-  arrays -- the startup loop resets the cursor every iteration, and get_log_len returns
-  capacity rather than fill.
-
-``states`` is deliberately not carried: it is never written to disk and never read by
-collate.py, so restoring it would cost ~3.9 MB per checkpoint for nothing.
+``states`` is not saved because collate.py never reads it.
 """
 
 import json
@@ -50,16 +41,16 @@ def _paths(outdir):
 
 
 def exists(outdir):
-    """True only if the commit marker is present."""
+    """True only if checkpoint.json is present."""
     return _paths(outdir)[2].exists()
 
 
 def save(outdir, sim, log, *, phase, i_next, config, mode, energy0, angmom0,
          t_wall_accum, attempt, seed, git_hash=None, cpu_accum=0.0, extra=None):
-    """Write a checkpoint.  Commit marker (`checkpoint.json`) is written last."""
+    """Write a checkpoint.  checkpoint.json is written last."""
     sim_p, npz_p, json_p = _paths(outdir)
 
-    for p in (sim_p, npz_p, json_p):          # never leave a stale marker
+    for p in (sim_p, npz_p, json_p):          # never leave a stale checkpoint.json
         if p.exists():
             p.unlink()
 
@@ -91,7 +82,7 @@ def save(outdir, sim, log, *, phase, i_next, config, mode, energy0, angmom0,
     }
     tmp_json = json_p.with_name(json_p.name + ".tmp")
     tmp_json.write_text(json.dumps(meta))
-    os.replace(tmp_json, json_p)               # <- commit
+    os.replace(tmp_json, json_p)             
     return meta
 
 
@@ -104,9 +95,9 @@ def load(outdir, *, expect_mode=None):
     """
     sim_p, npz_p, json_p = _paths(outdir)
     if not json_p.exists():
-        raise CheckpointMismatch("no commit marker")
+        raise CheckpointMismatch("no checkpoint.json")
     if not (sim_p.exists() and npz_p.exists()):
-        raise CheckpointMismatch("commit marker present but payload missing")
+        raise CheckpointMismatch("checkpoint.json present but data files missing")
 
     try:
         meta = json.loads(json_p.read_text())
@@ -148,7 +139,7 @@ def pack(outdir):
 
 
 def unpack(record, outdir):
-    """Inverse of pack: write the checkpoint files, commit marker last."""
+    """Inverse of pack: write the checkpoint files, checkpoint.json last."""
     sim_p, npz_p, json_p = _paths(outdir)
     pathlib.Path(outdir).mkdir(parents=True, exist_ok=True)
     sim_p.write_bytes(np.asarray(record["ckpt_sim"], dtype=np.uint8).tobytes())

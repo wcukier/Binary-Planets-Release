@@ -7,10 +7,6 @@ import pathlib
 from .forecaster import mr_forecast as mr
 import sys as system
 
-# Resolve data/ relative to the repository, not the working directory.  These loads
-# happen at import time, and on a batch execute node (HTCondor scratch, LSF job dir)
-# the CWD is not the repo root.  BP_DATA_DIR overrides for containers that stage the
-# data elsewhere.
 DATA_DIR = pathlib.Path(
     os.environ.get("BP_DATA_DIR",
                    pathlib.Path(__file__).resolve().parent.parent / "data")
@@ -43,7 +39,6 @@ def draw_rv(mid, lo, hi, num=1):
     #     return np.random.normal(mid, np.max([lo, hi]))
     
 def get_stellar_mass(sys):
-    # Fallback is for missing masses only; a `mass < 0.1` guard also caught TRAPPIST-1.
     mass = sys["st_mass"]
     if np.isnan(mass) or mass <= 0:
         x = np.random.uniform(MASS_CDF_MIN, MASS_CDF_MAX)
@@ -62,11 +57,6 @@ def get_eccen(sys):
             es[i]=0
         else:
             # e[i] = 0
-            # Bounded: draw_rv samples uniform(mid+lo, mid+hi), so if mid+hi <= 0 the
-            # acceptable set is empty and an unbounded loop would hang.  No planet in
-            # the current catalogue can trigger that (checked: 0 with an empty set, 0
-            # with acceptance below 5%), but the guard costs nothing and the catalogue
-            # is an input, not a constant.
             for _ in range(ECCEN_MAX_ATTEMPTS):
                 es[i] = draw_rv(mids[i], los[i], his[i])
                 if es[i] >= 0:
@@ -126,7 +116,7 @@ def get_mass(sys, return_radii=False):
                 r = draw_rv(r_mid[i], r_lower[i], r_upper[i])
                 radii[i] = r
                 mass[i] = mr.Rpost2M([r], "Earth", 1e5, classify="No")[0]
-                # Reject only against a genuine upper limit, never a central value.
+
                 if mass_lim[i] == 1 and mass[i] > mass_mid[i]:
                     override_break = 1
             else:
@@ -142,12 +132,6 @@ def get_mass(sys, return_radii=False):
             )
     return (mass, radii) if return_radii else mass
             
-# --- LLM-GENERATED — UNVERIFIED (tier: simulation) -----------------------------------
-# get_semimajor / stellar_axis_scale / gap_indices below were rewritten 2026-08-28 to fix
-# the defect recorded as task 0.8: the old version drew every axis independently, falling
-# back to U(0.8a, 1.2a) for the 63% of planets with no published error bars.  That was wide
-# enough to re-order the known planets in 4.95% of runs and to put the injected planet
-# outside the drawn gap in 13.6%.  Remove this banner only after POLICY.md §2 checks.
 AXIS_MAX_ATTEMPTS = 10_000  # ordering-rejection guard; see get_semimajor
 ECCEN_MAX_ATTEMPTS = 10_000  # non-negativity guard; see get_eccen
 
@@ -234,20 +218,13 @@ def get_semimajor(sys, m_star):
 
     Notes
     -----
-    Two cases, per Wolf's decision of 2026-08-28:
-
     - A planet **with** published error bars on both sides is drawn from them, as before.
       A published value reflects a real analysis and is trusted over a derived one.
     - A planet **without** them is placed by rigidly scaling its catalog axis with the
-      drawn stellar mass (:func:`stellar_axis_scale`), rather than by the old
-      ``U(0.8a, 1.2a)`` fallback, which was some fourteen times wider than the stellar mass
-      justifies and was the root cause of task 0.8.
+      drawn stellar mass (:func:`stellar_axis_scale`)
 
     Mixing the two can still invert an adjacent pair, so ordering is enforced by rejection.
-    Only 4 of 226 adjacent pairs have published ranges wide enough to overlap at all
-    (in KOI-351 and Kepler-186), so the rejection rate is small and the loop is not a
-    practical cost.  The whole system is redrawn on rejection rather than the offending
-    planet alone, which would bias the survivor toward the edge of its error bar.
+   (Only 2 systems)
     """
     a_cat = np.asarray(sys["a"], dtype=float)
     lo = np.asarray(sys["a_lower"], dtype=float)
@@ -266,7 +243,6 @@ def get_semimajor(sys, m_star):
         f"could not draw an ordered set of semi-major axes for {sys['name']} in "
         f"{AXIS_MAX_ATTEMPTS} attempts"
     )
-# --- end LLM-GENERATED block ---------------------------------------------------------
 
 
 # ---------------------------------------------------------------------------

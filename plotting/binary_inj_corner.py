@@ -14,8 +14,13 @@ ROOT = HERE.parent
 sys.path.append(str(ROOT))
 
 from binary_planets.sim import get_hill_radius  # noqa: E402
+from binary_planets.utils import mutual_inclination  # noqa: E402
+from binary_planets.constants import AU_TO_M, RADIUS_EARTH  # noqa: E402
 import cmasher as cmr  # noqa: E402, F401
 from scipy.stats import gaussian_kde  # noqa: E402
+
+sys.path.append(str(HERE))
+from crossing_cap import e_max  # noqa: E402
 
 os.makedirs(HERE / "figs", exist_ok=True)
 
@@ -85,11 +90,79 @@ else:
 names = [name for name in all_names if name in valid_planets]
 # names = ["Kepler-186"]
 
+def transform(arr, keys, system_idx):
+    """Convert one system's drawn parameters to the plotted ones.
+
+    Both ``arr`` and ``keys`` are modified in place: masses become total mass and mass
+    ratio, the pair inclination becomes the mutual inclination, angles go to degrees,
+    d to Hill radii and the COM a is rescaled into the gap.
+    """
+    m_tot = arr[:, keys=="bin/m1"] + arr[:, keys=="bin/m2"]
+    q = arr[:, keys=="bin/m1"] / m_tot
+    arr[:, keys=="bin/m1"] = m_tot
+    arr[:, keys=="bin/m2"] = q
+    keys[keys=="bin/m1"] = "bin/m_tot"
+    keys[keys=="bin/m2"] = "bin/q"
+
+    # The pair's own inclination only matters relative to its COM orbit, so plot the
+    # mutual inclination (the LK angle) in its place.
+    arr[:, keys=="bin/inc"] = mutual_inclination(arr[:, keys=="bin/inc"],
+                                                 arr[:, keys=="bin/bin_inc"],
+                                                 arr[:, keys=="bin/Omega"])
+    keys[keys=="bin/inc"] = "bin/i_mut"
+
+    for _k in ("bin/i_mut", "bin/bin_inc"):
+        arr[:, keys == _k] = np.degrees(arr[:, keys == _k])
+
+    hill_radius = get_hill_radius(arr[:, keys=="bin/a"], 
+                                  arr[:, keys=="bin/e_sys"], 
+                                  arr[:, keys=="bin/m_tot"], 
+                                  arr[:, keys=="m_star"])
+    arr[:, keys=="bin/d"] /= hill_radius
+
+    arr[:, keys=="bin/a"] = ((np.log10(arr[:, keys=="bin/a"]) - np.log10(run_systems[system_idx]["gap"][0]))
+                             / (np.log10(run_systems[system_idx]["gap"][1]) - np.log10(run_systems[system_idx]["gap"][0])))
+
+
+def load_prior_sample(system, keys, system_idx):
+    """Weighted draws from the prior before the 5-yr rejection (plotting/prerejection_prior.py).
+
+    ``keys`` are the raw (untransformed) column names.  Returns ``(arr, weight)`` with the columns of ``keys`` (NaN where not stored), or
+    None if the system has not been sampled.  Weights sum to the grid's draw count.
+    """
+    path = OUTPUT_ROOT / "prerejection" / dir / f"{system}.npz"
+    if not path.exists():
+        return None
+    smp = np.load(path)
+    out = np.full((len(smp["weight"]), len(keys)), np.nan)
+    for k in smp.files:
+        if k in keys:
+            out[:, keys==k] = smp[k][:, None]
+    transform(out, keys.copy(), system_idx)
+    return out, smp["weight"]
+
+
+def _uniform(lo, hi):
+    return lambda b: np.diff(np.clip(b, lo, hi)) / (hi - lo)
+
+
+def _isotropic_deg(b):
+    return -np.diff(np.cos(np.radians(np.clip(b, 0, 180)))) / 2
+
+
+# Fraction of the pre-rejection prior per bin, for the parameters drawn before the
+# crossing-orbit loop (draw.py at the grid revision).  The rest come from the sample.
+ANALYTIC = {"bin/m_tot": _uniform(0.38, 72), "bin/q": _uniform(0, 0.5), "bin/e": _uniform(0, 1),
+            "bin/e_sys_rel": _uniform(0, 1),
+            "bin/i_mut": _isotropic_deg, "bin/bin_inc": _isotropic_deg}
+
+
 is_binary = True
 
 dir = "bin_inj"
 arr_t = None
 stable_t = None
+prior_samples = []
 stable_omega = []
 unstable_omega = []
 for system in tqdm(names):
@@ -133,6 +206,11 @@ for system in tqdm(names):
 
 
                 # stable[i] = cfg["secondary_0"]["omega"] < 0
+
+                b = cfg["binary"]
+                e_contact = 1 - (b["radius1"] + b["radius2"]) * RADIUS_EARTH / AU_TO_M / b["d"]
+                cfg = dict(cfg, binary=dict(b, e_sys_rel=b["e_sys"] / e_max(cfg, 2),
+                                            e_rel=b["e"] / e_contact))
                 arr, keys = add_to_array(arr, cfg, keys, j, stable[i], bin=is_binary, secondary=False)
 
 
@@ -153,27 +231,8 @@ for system in tqdm(names):
         arr[:, 1:] += np.random.random((arr.shape[0], arr.shape[1]-1)) * 1e-20
 
 
-        m_tot = arr[:, keys=="bin/m1"] + arr[:, keys=="bin/m2"]
-        q = arr[:, keys=="bin/m1"] / m_tot
-        arr[:, keys=="bin/m1"] = m_tot
-        arr[:, keys=="bin/m2"] = q
-        keys[keys=="bin/m1"] = "bin/m_tot"
-        keys[keys=="bin/m2"] = "bin/q"
-
-        # Angles are stored in radians but reported in degrees everywhere in the text and
-        # by the referee (the 39.2-140.8 deg LK window, Nesvorny's 50-140 deg band), so the
-        # axes are converted here rather than leaving the reader to translate.
-        for _k in ("bin/inc", "bin/bin_inc"):
-            arr[:, keys == _k] = np.degrees(arr[:, keys == _k])
-
-        hill_radius = get_hill_radius(arr[:, keys=="bin/a"], 
-                                      arr[:, keys=="bin/e_sys"], 
-                                      arr[:, keys=="bin/m_tot"], 
-                                      arr[:, keys=="m_star"])
-        arr[:, keys=="bin/d"] /= hill_radius
-
-        arr[:, keys=="bin/a"] = ((np.log10(arr[:, keys=="bin/a"]) - np.log10(run_systems[system_idx]["gap"][0]))
-                                 / (np.log10(run_systems[system_idx]["gap"][1]) - np.log10(run_systems[system_idx]["gap"][0])))
+        smp = load_prior_sample(system, keys, system_idx)
+        transform(arr, keys, system_idx)
 
         if not np.any(arr_t):
             arr_t = arr
@@ -181,15 +240,26 @@ for system in tqdm(names):
         else:
             arr_t = np.vstack([arr_t, arr])
             stable_t = np.hstack([stable_t, stable])
+        prior_samples.append(smp)
     except Exception as e:
         print(e)
 
 
-param_labels = ["Total Mass \n" r"[M$_\oplus$]", "Mass Ratio", "Binary a \n[Hill Radii]",
-                "Binary e", "COM a \n(Rescaled)", "COM e",
-                "Binary \nInclination\n [deg]", "COM \nInclination \n [deg]"]
+if any(r is None for r in prior_samples):
+    print("prerejection sample missing for some systems; omitting the pre-rejection prior")
+    arr_pre_t = None
+else:
+    arr_pre_t = np.vstack([r[0] for r in prior_samples])
+    w_pre_t = np.concatenate([r[1] for r in prior_samples])
 
-good_keys = ['bin/m_tot', 'bin/q', 'bin/d', 'bin/e', 'bin/a', 'bin/e_sys',  'bin/inc', 'bin/bin_inc']
+param_labels = ["Total Mass \n" r"[M$_\oplus$]", "Mass Ratio", "Binary a \n[Hill Radii]",
+                "Binary\n" r"$e/e_{\rm contact}$", "COM a \n(Rescaled)", r"COM $e/e_{\rm max}$",
+                "Mutual \nInclination\n [deg]", "COM \nInclination \n [deg]"]
+
+# 37 of the 396,000 runs start with e above e_contact (all collide); keep them off the axis.
+PLOT_RANGE = {"bin/e_rel": (0, 1)}
+
+good_keys = ['bin/m_tot', 'bin/q', 'bin/d', 'bin/e_rel', 'bin/a', 'bin/e_sys_rel',  'bin/i_mut', 'bin/bin_inc']
 
 # plt.style.use("dark_background")
 mpl.rc("font", size=16)
@@ -202,6 +272,7 @@ gs = axs[0, 0].get_gridspec()
 n = 50
 
 levels = np.logspace(-2, 0.5, 8)
+density_levels = np.linspace(0, 1, 9)
 
 c1 = mpl.colormaps["cmr.sepia"](0.95)
 c2 = mpl.colormaps["cmr.lavender"](0.95)
@@ -223,8 +294,8 @@ for i, j in tqdm(pairs):
         x_s = arr_t[arr_t[:, 0]==1, keys==key1]
         y_s = arr_t[arr_t[:, 0]==1, keys==key2]
         
-        xs = np.linspace(np.min(x), np.max(x), n)
-        ys = np.linspace(np.min(y), np.max(y), n)
+        xs = np.linspace(*PLOT_RANGE.get(key1, (np.min(x), np.max(x))), n)
+        ys = np.linspace(*PLOT_RANGE.get(key2, (np.min(y), np.max(y))), n)
 
         xx, yy = np.meshgrid(xs, ys)
         
@@ -242,13 +313,14 @@ for i, j in tqdm(pairs):
 
         xy = np.vstack([xx.ravel(), yy.ravel()])
         density = kde(xy).reshape(n, n)
+        density /= density.max()
         # density_s = kde_s(xy).reshape(n, n)
         # -------------------
 
-        ax.contourf(xx, yy, density, cmap="cmr.sepia", alpha=0.5)
+        cs = ax.contourf(xx, yy, density, levels=density_levels, cmap="cmr.sepia", alpha=0.5)
 #         ax.contour(xx, yy, density_s, linewidths=2, cmap="cmr.lavender", levels=3)
 #         ax.scatter(x_s, y_s, s=0.25, c="k", alpha=0.3)
-        ax.scatter(x_s, y_s, s=0.4, c="k", alpha=0.3)
+        ax.scatter(x_s, y_s, s=1.2, c="k", alpha=0.3, linewidths=0)
 
 
 #         ax.set_xticks([])
@@ -268,6 +340,7 @@ for i in range(n_vars+1):
         axs[i,j].remove()
         
         
+y_top = 0
 for i in range(n_vars+1):
     ax = axs[i,i]
     key1 = good_keys[i]
@@ -279,11 +352,30 @@ for i in range(n_vars+1):
     ax.yaxis.set_label_position("right")
     ax.set_ylabel("Count")
     
-    ax.hist(x, bins=n_bins, color=c1)
-    ax.hist(x, bins=n_bins, color=c1_dark, histtype="step")
+    if arr_pre_t is None:
+        bins = n_bins
+    else:
+        x_pre = arr_pre_t[:, keys==key1].ravel()
+        x_pre = x_pre[np.isfinite(x_pre)]
+        bins = np.histogram_bin_edges(np.concatenate([x.ravel(), x_pre]), n_bins)
+    if key1 in PLOT_RANGE:
+        bins = np.linspace(*PLOT_RANGE[key1], n_bins + 1)
 
-    ax.hist(x_s, bins=n_bins, color=c2)
-    ax.hist(x_s, bins=n_bins, color=c2_dark, histtype="step", lw=2)
+    n_prior = ax.hist(x, bins=bins, color=c1)[0]
+    y_top = max(y_top, n_prior.max())
+    ax.hist(x, bins=bins, color=c1_dark, histtype="step")
+
+    bins_s = bins if key1 in PLOT_RANGE else n_bins
+    ax.hist(x_s, bins=bins_s, color=c2)
+    ax.hist(x_s, bins=bins_s, color=c2_dark, histtype="step", lw=2)
+
+    if arr_pre_t is not None:
+        if key1 in ANALYTIC:
+            counts = w_pre_t.sum() * ANALYTIC[key1](bins)
+        else:
+            counts = np.histogram(x_pre, bins, weights=w_pre_t)[0]
+        ax.stairs(counts, bins, color=c1_dark, ls=":", lw=2)
+        y_top = max(y_top, counts.max())
 
     ax.set_yscale("log")
 
@@ -293,11 +385,37 @@ for i in range(n_vars+1):
     else: ax.set_xlabel(param_labels[i])
 
 # plt.show()
+# The diagonals share y with axs[0, 0]; size it to the tallest histogram.
+axs[0, 0].set_ylim(top=2 * y_top)
+
 for i in range(n_vars+1):
     axs[n_vars, i].tick_params(axis='x', rotation=45)
     axs[i, i].tick_params(axis='x', rotation=45)
 
+for idx, k in enumerate(good_keys):
+    if k in PLOT_RANGE:
+        axs[n_vars, idx].set_xlim(PLOT_RANGE[k])
+        if idx > 0:
+            axs[idx, 0].set_ylim(PLOT_RANGE[k])
+
 fig.subplots_adjust(hspace=0.05, wspace=0.05)  # a) reduce spacing
+
+lax = fig.add_subplot(gs[0:2, n_vars-1:])
+lax.axis("off")
+handles = [mpl.patches.Patch(facecolor=c1, edgecolor=c1_dark, label="All Runs (Prior)"),
+           mpl.patches.Patch(facecolor=c2, edgecolor=c2_dark, lw=2, label="Surviving Runs")]
+if arr_pre_t is not None:
+    handles.append(mpl.lines.Line2D([], [], color=c1_dark, ls=":", lw=2,
+                                    label="Prior before 5 yr rejection"))
+handles.append(mpl.lines.Line2D([], [], ls="", marker="o", ms=5, mfc="k", mec="none",
+                                alpha=0.6, label="Surviving Run"))
+leg = lax.legend(handles=handles, loc="upper right", frameon=False)
+fig.canvas.draw()
+bb = leg.get_window_extent().transformed(lax.transAxes.inverted())
+cb_width = 0.75
+cax = lax.inset_axes([(bb.x0 + bb.x1 - cb_width) / 2, 0.4, cb_width, 0.05])
+cb = fig.colorbar(cs, cax=cax, orientation="horizontal", ticks=[0, 0.5, 1])
+cb.set_label("Prior Density")
 
 
 plt.savefig(HERE / "figs" / f"figure6_corner_binary{FIG_SUFFIX}.png", dpi=150,
