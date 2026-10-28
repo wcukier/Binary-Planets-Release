@@ -1,6 +1,6 @@
 """
-Downloads collated npz zips from Dropbox, expands them into the original
-folder structure, and deletes the zips when done.
+Downloads collated npz zips from Zenodo (doi:10.5281/zenodo.23697084), expands
+them into the original folder structure, and deletes the zips when done.
 
 Usage:
     python download_data.py
@@ -18,12 +18,12 @@ import zipfile
 # ── Configuration ─────────────────────────────────────────────────────────────
 DOWNLOADS = [
     {
-        "url":      "https://www.dropbox.com/scl/fi/bwtbvf4u6bliakdnw75zj/collated_npzs_bininj.zip?rlkey=4shx0tanbl140gngmt9y7gnqh&st=cqq834xd&dl=1",
+        "url":      "https://zenodo.org/records/23697084/files/collated_npzs_bininj.zip?download=1",
         "zip_path": pathlib.Path("collated_npzs_bininj.zip"),
         "out_root": pathlib.Path("output/bin_inj"),
     },
     {
-        "url":      "https://www.dropbox.com/scl/fi/sfzyuur77hjwkwqsrt7mc/collated_npzs_sininj.zip?rlkey=fmq3315le8oqgpv5os19iyyj1&st=mr1fcw2e&dl=1",
+        "url":      "https://zenodo.org/records/23697084/files/collated_npzs_sininj.zip?download=1",
         "zip_path": pathlib.Path("collated_npzs_sininj.zip"),
         "out_root": pathlib.Path("output/sin_inj"),
     },

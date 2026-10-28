@@ -16,6 +16,5 @@ tools/**
 container/**
 osg/**
 CLAUDE.md
-plotting/crossing_cap.py
 plotting/prerejection_prior.py
 main.remapped.tex
